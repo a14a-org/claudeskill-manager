@@ -1,0 +1,50 @@
+{
+  "name": "@claudeskill/cli",
+  "version": "0.1.2",
+  "description": "Sync your Claude Code skills across devices with zero-knowledge encryption",
+  "type": "module",
+  "bin": {
+    "claudeskill": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@claudeskill/core": "*",
+    "@clack/prompts": "^0.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "sync",
+    "cli",
+    "encryption"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a14a-org/claudeskill-manager"
+  },
+  "homepage": "https://claudeskill.io"
+}

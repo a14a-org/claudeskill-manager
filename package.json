@@ -1,0 +1,24 @@
+{
+  "name": "claude-skill-sync-monorepo",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:server": "yarn workspace @claude-skill-sync/server dev",
+    "dev:cli": "node packages/cli/dist/index.js",
+    "start:server": "yarn workspace @claude-skill-sync/server start",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.7",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}
