@@ -12,12 +12,15 @@ import {
   blobs,
   skills,
   skillVersions,
+  publicSkills,
   type User,
   type OtpCode,
   type Session,
   type Blob,
   type Skill,
   type SkillVersion,
+  type PublicSkill,
+  type PublicSkillStatus,
 } from "./schema.js";
 
 // Re-export types with legacy names for backward compatibility
@@ -27,6 +30,8 @@ export type SessionRecord = Session;
 export type BlobRecord = Blob;
 export type SkillRecord = Skill;
 export type SkillVersionRecord = SkillVersion;
+export type PublicSkillRecord = PublicSkill;
+export type { PublicSkillStatus };
 
 // =============================================================================
 // Database Connection
@@ -425,5 +430,241 @@ export const countSkillVersions = async (skillId: string): Promise<number> => {
     .select({ count: count() })
     .from(skillVersions)
     .where(eq(skillVersions.skillId, skillId));
+  return result[0]?.count ?? 0;
+};
+
+// =============================================================================
+// Public skill queries
+// =============================================================================
+
+export const createPublicSkill = async (
+  userId: string,
+  skillId: string | null,
+  slug: string,
+  name: string,
+  content: string,
+  description?: string,
+  category?: string,
+  tags?: string[],
+  files?: Record<string, string>
+): Promise<PublicSkill> => {
+  const result = await db
+    .insert(publicSkills)
+    .values({
+      userId,
+      skillId,
+      slug,
+      name,
+      content,
+      description: description ?? null,
+      category: category ?? null,
+      tags: tags ?? null,
+      files: files ?? null,
+    })
+    .returning();
+  return result[0]!;
+};
+
+export const findPublicSkillBySlug = async (
+  slug: string
+): Promise<(PublicSkill & { authorEmail: string }) | undefined> => {
+  const result = await db
+    .select({
+      id: publicSkills.id,
+      skillId: publicSkills.skillId,
+      userId: publicSkills.userId,
+      slug: publicSkills.slug,
+      name: publicSkills.name,
+      description: publicSkills.description,
+      category: publicSkills.category,
+      tags: publicSkills.tags,
+      content: publicSkills.content,
+      files: publicSkills.files,
+      status: publicSkills.status,
+      reviewedBy: publicSkills.reviewedBy,
+      reviewedAt: publicSkills.reviewedAt,
+      rejectionReason: publicSkills.rejectionReason,
+      downloadCount: publicSkills.downloadCount,
+      submittedAt: publicSkills.submittedAt,
+      publishedAt: publicSkills.publishedAt,
+      updatedAt: publicSkills.updatedAt,
+      authorEmail: users.email,
+    })
+    .from(publicSkills)
+    .innerJoin(users, eq(publicSkills.userId, users.id))
+    .where(eq(publicSkills.slug, slug));
+  return result[0];
+};
+
+export const findPublicSkillById = async (
+  id: string
+): Promise<PublicSkill | undefined> => {
+  const result = await db
+    .select()
+    .from(publicSkills)
+    .where(eq(publicSkills.id, id));
+  return result[0];
+};
+
+export const listApprovedPublicSkills = async (
+  limit = 50,
+  offset = 0,
+  category?: string
+): Promise<
+  (Pick<
+    PublicSkill,
+    | "id"
+    | "slug"
+    | "name"
+    | "description"
+    | "category"
+    | "tags"
+    | "downloadCount"
+    | "publishedAt"
+  > & { authorEmail: string })[]
+> => {
+  const baseQuery = db
+    .select({
+      id: publicSkills.id,
+      slug: publicSkills.slug,
+      name: publicSkills.name,
+      description: publicSkills.description,
+      category: publicSkills.category,
+      tags: publicSkills.tags,
+      downloadCount: publicSkills.downloadCount,
+      publishedAt: publicSkills.publishedAt,
+      authorEmail: users.email,
+    })
+    .from(publicSkills)
+    .innerJoin(users, eq(publicSkills.userId, users.id))
+    .where(
+      category
+        ? and(
+            eq(publicSkills.status, "approved"),
+            eq(publicSkills.category, category)
+          )
+        : eq(publicSkills.status, "approved")
+    )
+    .orderBy(desc(publicSkills.downloadCount))
+    .limit(limit)
+    .offset(offset);
+
+  return baseQuery;
+};
+
+export const listPendingPublicSkills = async (
+  limit = 50
+): Promise<(PublicSkill & { authorEmail: string })[]> => {
+  return db
+    .select({
+      id: publicSkills.id,
+      skillId: publicSkills.skillId,
+      userId: publicSkills.userId,
+      slug: publicSkills.slug,
+      name: publicSkills.name,
+      description: publicSkills.description,
+      category: publicSkills.category,
+      tags: publicSkills.tags,
+      content: publicSkills.content,
+      files: publicSkills.files,
+      status: publicSkills.status,
+      reviewedBy: publicSkills.reviewedBy,
+      reviewedAt: publicSkills.reviewedAt,
+      rejectionReason: publicSkills.rejectionReason,
+      downloadCount: publicSkills.downloadCount,
+      submittedAt: publicSkills.submittedAt,
+      publishedAt: publicSkills.publishedAt,
+      updatedAt: publicSkills.updatedAt,
+      authorEmail: users.email,
+    })
+    .from(publicSkills)
+    .innerJoin(users, eq(publicSkills.userId, users.id))
+    .where(eq(publicSkills.status, "pending"))
+    .orderBy(desc(publicSkills.submittedAt))
+    .limit(limit);
+};
+
+export const listUserPublicSkills = async (
+  userId: string
+): Promise<PublicSkill[]> => {
+  return db
+    .select()
+    .from(publicSkills)
+    .where(eq(publicSkills.userId, userId))
+    .orderBy(desc(publicSkills.submittedAt));
+};
+
+export const approvePublicSkill = async (
+  id: string,
+  reviewerId: string
+): Promise<PublicSkill | undefined> => {
+  const result = await db
+    .update(publicSkills)
+    .set({
+      status: "approved",
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
+      publishedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(publicSkills.id, id))
+    .returning();
+  return result[0];
+};
+
+export const rejectPublicSkill = async (
+  id: string,
+  reviewerId: string,
+  reason: string
+): Promise<PublicSkill | undefined> => {
+  const result = await db
+    .update(publicSkills)
+    .set({
+      status: "rejected",
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
+      rejectionReason: reason,
+      updatedAt: new Date(),
+    })
+    .where(eq(publicSkills.id, id))
+    .returning();
+  return result[0];
+};
+
+export const incrementPublicSkillDownloads = async (
+  id: string
+): Promise<void> => {
+  await db
+    .update(publicSkills)
+    .set({
+      downloadCount: sql`${publicSkills.downloadCount} + 1`,
+    })
+    .where(eq(publicSkills.id, id));
+};
+
+export const deletePublicSkill = async (
+  id: string,
+  userId: string
+): Promise<boolean> => {
+  const result = await db
+    .delete(publicSkills)
+    .where(and(eq(publicSkills.id, id), eq(publicSkills.userId, userId)))
+    .returning({ id: publicSkills.id });
+  return result.length > 0;
+};
+
+export const countApprovedPublicSkills = async (): Promise<number> => {
+  const result = await db
+    .select({ count: count() })
+    .from(publicSkills)
+    .where(eq(publicSkills.status, "approved"));
+  return result[0]?.count ?? 0;
+};
+
+export const countPendingPublicSkills = async (): Promise<number> => {
+  const result = await db
+    .select({ count: count() })
+    .from(publicSkills)
+    .where(eq(publicSkills.status, "pending"));
   return result[0]?.count ?? 0;
 };
