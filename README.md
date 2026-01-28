@@ -116,10 +116,11 @@ node packages/server/dist/index.js
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PORT` | No | Server port (default: 3001) |
-| `DATABASE_PATH` | No | SQLite database path (default: ./data/skills.db) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `JWT_SECRET` | Yes | Secret for JWT signing. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `RESEND_API_KEY` | No | Resend API key for OTP emails. Leave empty in dev (codes logged to console) |
 | `FROM_EMAIL` | No | From address for emails (default: noreply@claudeskill.io) |
+| `ADMIN_EMAILS` | No | Comma-separated list of admin emails for reviewing public skills |
 
 ## How It Works
 
@@ -164,6 +165,43 @@ PUT    /blobs/:id         Update a blob
 DELETE /blobs/:id         Delete a blob
 ```
 
+### Skills (Versioned)
+
+```
+GET    /skills                       List all skills
+GET    /skills/:skillKey             Get current version of a skill
+POST   /skills/:skillKey/versions    Push a new version
+GET    /skills/:skillKey/versions    Get version history
+DELETE /skills/:skillKey             Delete skill and all versions
+```
+
+### Public Skills
+
+Share skills publicly with the community (content is stored unencrypted).
+
+```
+# Public endpoints (no auth required)
+GET    /public/skills             List approved public skills
+GET    /public/skills/:slug       Get a public skill by slug
+
+# Authenticated endpoints
+POST   /skills/:key/publish       Submit skill for review
+GET    /skills/public             List your public skills (all statuses)
+DELETE /skills/public/:id         Unpublish a skill
+```
+
+### Admin (Review Workflow)
+
+Admin users (configured via `ADMIN_EMAILS` env var) can approve/reject submissions.
+
+```
+GET    /admin/stats               Get pending/approved counts
+GET    /admin/pending             List skills pending review
+GET    /admin/pending/:id         Get single pending skill
+POST   /admin/skills/:id/approve  Approve a skill
+POST   /admin/skills/:id/reject   Reject with reason
+```
+
 ### Account
 
 ```
@@ -174,6 +212,41 @@ GET    /account/recovery  Get recovery blob
 PUT    /account/recovery  Set recovery blob
 DELETE /account           Delete account and all data
 ```
+
+## Public Skills
+
+Share your skills with the community through our public skills directory.
+
+### How It Works
+
+1. **Publish**: Users submit skills for review via the dashboard or API
+2. **Review**: Admins review submissions for quality and security
+3. **Approve/Reject**: Approved skills appear in the public directory
+4. **Install**: Anyone can install public skills via the CLI
+
+### Publishing Flow
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  User clicks    │     │  Passphrase     │     │  Decrypt skill  │
+│  "Publish"      │ ──▶ │  Modal opens    │ ──▶ │  locally in     │
+│                 │     │                 │     │  browser        │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Shows in       │     │  Admin reviews  │     │  Send PLAIN     │
+│  public dir     │ ◀── │  & approves     │ ◀── │  content to API │
+│  (if approved)  │     │                 │     │  (status=pending)│
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### Important Notes
+
+- **Public skills are NOT encrypted** - content is stored in plaintext
+- Users must explicitly choose to publish (requires passphrase entry)
+- All submissions go through manual review before becoming visible
+- Authors can unpublish their skills at any time
 
 ## Security
 

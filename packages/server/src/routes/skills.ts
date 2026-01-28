@@ -12,6 +12,9 @@ import {
   createSkillVersion,
   findSkillVersion,
   listSkillVersions,
+  createPublicSkill,
+  listUserPublicSkills,
+  deletePublicSkill,
 } from "../db/index.js";
 import { authMiddleware, getUser } from "../middleware.js";
 
@@ -200,6 +203,116 @@ skillsRouter.delete("/:skillKey", async (c) => {
   const deleted = await deleteSkill(skill.id, user.sub);
   if (!deleted) {
     return c.json({ error: "Failed to delete skill" }, 500);
+  }
+
+  return c.json({ success: true });
+});
+
+/**
+ * Publish a skill to the public directory
+ * POST /skills/:skillKey/publish
+ *
+ * Note: The client must decrypt the skill content before sending,
+ * as public skills are stored unencrypted.
+ */
+skillsRouter.post("/:skillKey/publish", async (c) => {
+  const user = getUser(c);
+  const skillKey = c.req.param("skillKey");
+
+  const body = await c.req.json<{
+    name: string;
+    content: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+    files?: Record<string, string>;
+  }>();
+
+  if (!body.name || !body.content) {
+    return c.json({ error: "Name and content are required" }, 400);
+  }
+
+  // Find the original skill (optional - we just need the ID for reference)
+  const skill = await findSkillByKey(user.sub, skillKey);
+
+  // Generate a slug from the name
+  const slug = body.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  // Check for slug uniqueness by trying different suffixes
+  let finalSlug = slug;
+  let suffix = 0;
+  while (true) {
+    try {
+      const publicSkill = await createPublicSkill(
+        user.sub,
+        skill?.id ?? null,
+        finalSlug,
+        body.name,
+        body.content,
+        body.description,
+        body.category,
+        body.tags,
+        body.files
+      );
+
+      return c.json({
+        id: publicSkill.id,
+        slug: publicSkill.slug,
+        status: publicSkill.status,
+        message: "Skill submitted for review",
+      });
+    } catch (err) {
+      // If slug conflict, try with a suffix
+      if (
+        err instanceof Error &&
+        err.message.includes("unique constraint") &&
+        suffix < 10
+      ) {
+        suffix++;
+        finalSlug = `${slug}-${suffix}`;
+        continue;
+      }
+      throw err;
+    }
+  }
+});
+
+/**
+ * List user's public skills (including pending/rejected)
+ * GET /skills/public
+ */
+skillsRouter.get("/public", async (c) => {
+  const user = getUser(c);
+  const publicSkillsList = await listUserPublicSkills(user.sub);
+
+  return c.json({
+    skills: publicSkillsList.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      status: s.status,
+      downloadCount: s.downloadCount,
+      submittedAt: s.submittedAt,
+      publishedAt: s.publishedAt,
+      rejectionReason: s.rejectionReason,
+    })),
+  });
+});
+
+/**
+ * Unpublish (delete) a public skill
+ * DELETE /skills/public/:id
+ */
+skillsRouter.delete("/public/:id", async (c) => {
+  const user = getUser(c);
+  const id = c.req.param("id");
+
+  const deleted = await deletePublicSkill(id, user.sub);
+  if (!deleted) {
+    return c.json({ error: "Public skill not found" }, 404);
   }
 
   return c.json({ success: true });
