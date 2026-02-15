@@ -13,6 +13,7 @@ import { accountRoutes } from "./routes/account.js";
 import { skillsRouter } from "./routes/skills.js";
 import { jsonldRouter } from "./routes/jsonld.js";
 import { pagesRouter } from "./routes/pages.js";
+import { performanceRouter } from "./routes/performance.js";
 
 const app = new Hono();
 
@@ -52,6 +53,20 @@ app.get("/stats", async (c) => {
   return c.json(stats);
 });
 
+// Cache-Control for static JSON endpoints (pages, jsonld, performance)
+app.use("/pages/*", async (c, next) => {
+  await next();
+  if (!c.res.headers.has("Cache-Control")) {
+    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  }
+});
+app.use("/jsonld/*", async (c, next) => {
+  await next();
+  if (!c.res.headers.has("Cache-Control")) {
+    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+  }
+});
+
 // Routes
 app.route("/auth", authRoutes);
 app.route("/blobs", blobRoutes);
@@ -59,6 +74,7 @@ app.route("/account", accountRoutes);
 app.route("/skills", skillsRouter);
 app.route("/jsonld", jsonldRouter);
 app.route("/pages", pagesRouter);
+app.route("/performance", performanceRouter);
 
 // 404 handler
 app.notFound((c) => {
