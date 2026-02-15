@@ -248,3 +248,56 @@ export const webPageSchema = (
     url: SITE_URL,
   },
 });
+
+/**
+ * BreadcrumbList schema for navigation
+ */
+export const breadcrumbSchema = (
+  items: { name: string; url: string }[]
+): JsonLdSchema => ({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: items.map((item, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: item.name,
+    item: item.url,
+  })),
+});
+
+/**
+ * SiteNavigationElement schema for key pages
+ */
+export const siteNavigationSchema = (): JsonLdSchema => ({
+  "@context": "https://schema.org",
+  "@type": "SiteNavigationElement",
+  name: "Main Navigation",
+  url: SITE_URL,
+  hasPart: [
+    {
+      "@type": "WebPage",
+      name: "Skills Catalog",
+      url: `${SITE_URL}/skills`,
+      description: "Browse and install reusable Claude Code skills",
+    },
+    {
+      "@type": "WebPage",
+      name: "Documentation",
+      url: `${SITE_URL}/docs`,
+      description: "Get started with Claude Skill Manager",
+    },
+    {
+      "@type": "WebPage",
+      name: "What are Claude Code Skills?",
+      url: `${SITE_URL}/what-are-claude-code-skills`,
+      description:
+        "Learn how skills extend Claude Code with reusable prompts",
+    },
+    {
+      "@type": "WebPage",
+      name: "Open Source",
+      url: `${SITE_URL}/open-source`,
+      description: "Open source libraries powering Skill Manager",
+    },
+  ],
+});

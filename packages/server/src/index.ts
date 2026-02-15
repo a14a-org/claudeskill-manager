@@ -11,6 +11,8 @@ import { authRoutes } from "./routes/auth.js";
 import { blobRoutes } from "./routes/blobs.js";
 import { accountRoutes } from "./routes/account.js";
 import { skillsRouter } from "./routes/skills.js";
+import { jsonldRouter } from "./routes/jsonld.js";
+import { pagesRouter } from "./routes/pages.js";
 
 const app = new Hono();
 
@@ -55,6 +57,8 @@ app.route("/auth", authRoutes);
 app.route("/blobs", blobRoutes);
 app.route("/account", accountRoutes);
 app.route("/skills", skillsRouter);
+app.route("/jsonld", jsonldRouter);
+app.route("/pages", pagesRouter);
 
 // 404 handler
 app.notFound((c) => {
