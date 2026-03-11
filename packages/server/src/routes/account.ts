@@ -8,6 +8,8 @@ import {
   updateUserSalt,
   updateUserRecoveryBlob,
   updateUserEncryptedMasterKey,
+  getUserKeyPair,
+  updateUserPublicKey,
   deleteUser,
   deleteUserSessions,
   countUserBlobs,
@@ -175,6 +177,61 @@ accountRoutes.put("/master-key", async (c) => {
   }
 
   await updateUserEncryptedMasterKey(user.id, body.encryptedMasterKey);
+
+  return c.json({ success: true });
+});
+
+/**
+ * Get account sharing keypair backup metadata
+ * GET /account/sharing-key
+ */
+accountRoutes.get("/sharing-key", async (c) => {
+  const jwtUser = getUser(c);
+  const keyPair = await getUserKeyPair(jwtUser.sub);
+
+  if (!keyPair) {
+    return c.json({ hasKeypair: false });
+  }
+
+  return c.json({
+    hasKeypair: true,
+    publicKey: keyPair.publicKey,
+    publicKeyFingerprint: keyPair.publicKeyFingerprint,
+    encryptedPrivateKey: keyPair.encryptedPrivateKey,
+    privateKeyIv: keyPair.privateKeyIv,
+    privateKeyTag: keyPair.privateKeyTag,
+  });
+});
+
+/**
+ * Set account sharing keypair backup
+ * PUT /account/sharing-key
+ */
+accountRoutes.put("/sharing-key", async (c) => {
+  const jwtUser = getUser(c);
+  const body = await c.req.json<{
+    publicKey?: string;
+    encryptedPrivateKey?: string;
+    privateKeyIv?: string;
+    privateKeyTag?: string;
+  }>();
+
+  if (
+    !body.publicKey ||
+    !body.encryptedPrivateKey ||
+    !body.privateKeyIv ||
+    !body.privateKeyTag
+  ) {
+    return c.json({ error: "Missing required sharing key fields" }, 400);
+  }
+
+  await updateUserPublicKey(
+    jwtUser.sub,
+    body.publicKey,
+    body.encryptedPrivateKey,
+    body.privateKeyIv,
+    body.privateKeyTag
+  );
 
   return c.json({ success: true });
 });

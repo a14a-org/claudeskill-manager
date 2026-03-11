@@ -137,4 +137,118 @@ export type Credentials = {
   encryptedMasterKey: string;
   /** Salt for key derivation (base64) */
   salt: string;
+  /** User's X25519 public key (base64) - for team key exchange */
+  publicKey?: string;
+  /** User's X25519 private key encrypted with master key (base64) */
+  encryptedPrivateKey?: string;
+  /** IV for encrypted private key */
+  privateKeyIv?: string;
+  /** Auth tag for encrypted private key */
+  privateKeyTag?: string;
+  /** Stable fingerprint for the user's current X25519 public key */
+  publicKeyFingerprint?: string;
+  /** Trust-on-first-use cache for other members' public key fingerprints */
+  knownPublicKeyFingerprints?: Record<string, string>;
+};
+
+// =============================================================================
+// Team Types
+// =============================================================================
+
+/** Team role levels */
+export type TeamRole = "owner" | "admin" | "editor" | "viewer";
+
+/** Team member status */
+export type TeamMemberStatus = "pending" | "active";
+
+/** Team information */
+export type Team = {
+  /** Team ID */
+  id: string;
+  /** Team name */
+  name: string;
+  /** Team owner user ID */
+  ownerId: string;
+  /** Created timestamp */
+  createdAt: string;
+};
+
+/** Team member information */
+export type TeamMember = {
+  /** Team ID */
+  teamId: string;
+  /** User ID */
+  userId: string;
+  /** User email */
+  email: string;
+  /** Member role */
+  role: TeamRole;
+  /** Member status */
+  status: TeamMemberStatus;
+  /** Whether this member has received the team key */
+  hasTeamKey: boolean;
+  /** Stable fingerprint for this member's public key, when available */
+  publicKeyFingerprint?: string | null;
+  /** Joined timestamp */
+  createdAt: string;
+};
+
+/** Team invite information */
+export type TeamInvite = {
+  /** Invite ID */
+  id: string;
+  /** Team ID */
+  teamId: string;
+  /** Team name */
+  teamName: string;
+  /** Invited email */
+  email: string;
+  /** Role to be assigned */
+  role: TeamRole;
+  /** Expiration timestamp */
+  expiresAt: string;
+  /** Created by user ID */
+  createdBy: string;
+  /** Created timestamp */
+  createdAt: string;
+};
+
+/** Team with membership info for current user */
+export type TeamWithMembership = Team & {
+  /** Current user's role in the team */
+  role: TeamRole;
+  /** Current user's status */
+  status: TeamMemberStatus;
+  /** Number of members */
+  memberCount: number;
+  /** Number of skills */
+  skillCount: number;
+};
+
+/** Encrypted team key for a member */
+export type EncryptedTeamKey = {
+  /** Team ID */
+  teamId: string;
+  /** Team key version this envelope belongs to */
+  teamKeyVersion: number;
+  /** Encrypted team key (encrypted with member's public key) */
+  encryptedKey: string;
+  /** IV for encryption */
+  iv: string;
+  /** Auth tag */
+  tag: string;
+  /** Sender ephemeral public key */
+  ephemeralPublicKey: string;
+};
+
+/** Local team credentials (stored in credentials file) */
+export type TeamCredentials = {
+  /** Team ID */
+  teamId: string;
+  /** Decrypted team master key (base64) - stored encrypted with user's master key */
+  encryptedTeamKey: string;
+  /** IV for team key encryption */
+  teamKeyIv: string;
+  /** Auth tag for team key encryption */
+  teamKeyTag: string;
 };
