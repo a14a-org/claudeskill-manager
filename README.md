@@ -6,6 +6,7 @@ Sync your Claude Code skills across devices with zero-knowledge encryption.
 
 - **Zero-knowledge encryption** - Your skills are encrypted client-side. The server never sees your content.
 - **Cross-device sync** - Access your skills from any device
+- **Team sharing** - Share encrypted skills with colleagues using per-member key envelopes
 - **Self-host option** - Run your own server for complete control
 - **Simple CLI** - Easy to use command-line interface
 
@@ -35,6 +36,8 @@ claudeskill push               # Push local skills to cloud
 claudeskill pull               # Pull skills from cloud
 claudeskill login              # Login to existing account
 claudeskill logout             # Logout and clear credentials
+claudeskill team list          # List your teams
+claudeskill team create <name> # Create a team workspace
 claudeskill --help             # Show all commands
 ```
 
@@ -79,8 +82,8 @@ claude-skill-sync/
 │   ├── cli/            # Command-line interface
 │   └── server/         # API server
 ├── .env.example        # Environment variables template
-├── docker-compose.yml  # Self-hosting setup
-└── PLAN.md            # Architecture documentation
+├── docker-compose.yaml # Self-hosting setup
+└── packages/server/drizzle/prod/20260311_team_share_incremental.sql
 ```
 
 ## Self-Hosting
@@ -93,7 +96,7 @@ cp .env.example .env
 # Edit .env - set JWT_SECRET and optionally RESEND_API_KEY
 
 # Start the server
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Manual Setup
@@ -116,10 +119,28 @@ node packages/server/dist/index.js
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PORT` | No | Server port (default: 3001) |
-| `DATABASE_PATH` | No | SQLite database path (default: ./data/skills.db) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `ENABLE_TEAM_SHARING` | No | Exposes `/teams` when set to `true` |
 | `JWT_SECRET` | Yes | Secret for JWT signing. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `RESEND_API_KEY` | No | Resend API key for OTP emails. Leave empty in dev (codes logged to console) |
 | `FROM_EMAIL` | No | From address for emails (default: noreply@claudeskill.io) |
+
+## Production Rollout
+
+For an already-live server, use the manual incremental migration instead of the generated Drizzle baseline:
+
+```bash
+psql "$DATABASE_URL" -f packages/server/drizzle/prod/20260311_team_share_incremental.sql
+```
+
+Recommended order:
+1. Back up production Postgres.
+2. Apply `packages/server/drizzle/prod/20260311_team_share_incremental.sql`.
+3. Deploy the server with `ENABLE_TEAM_SHARING=false`.
+4. Verify existing personal sync still works.
+5. Redeploy with `ENABLE_TEAM_SHARING=true`.
+6. Smoke test team create, invite, accept, key distribution, and member removal.
+7. Publish the CLI update after that.
 
 ## How It Works
 

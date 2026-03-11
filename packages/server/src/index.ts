@@ -11,8 +11,10 @@ import { authRoutes } from "./routes/auth.js";
 import { blobRoutes } from "./routes/blobs.js";
 import { accountRoutes } from "./routes/account.js";
 import { skillsRouter } from "./routes/skills.js";
+import { teamsRouter } from "./routes/teams.js";
 
 const app = new Hono();
+const enableTeamSharing = process.env["ENABLE_TEAM_SHARING"] === "true";
 
 // Middleware
 app.use("*", logger());
@@ -55,6 +57,9 @@ app.route("/auth", authRoutes);
 app.route("/blobs", blobRoutes);
 app.route("/account", accountRoutes);
 app.route("/skills", skillsRouter);
+if (enableTeamSharing) {
+  app.route("/teams", teamsRouter);
+}
 
 // 404 handler
 app.notFound((c) => {
@@ -71,6 +76,7 @@ app.onError((err, c) => {
 const port = parseInt(process.env["PORT"] ?? "3001", 10);
 
 console.log(`Starting server on port ${port}...`);
+console.log(`Team sharing routes: ${enableTeamSharing ? "enabled" : "disabled"}`);
 
 serve({
   fetch: app.fetch,

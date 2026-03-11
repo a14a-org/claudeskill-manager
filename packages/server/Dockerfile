@@ -3,9 +3,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
-
 # Copy package files
 COPY package.json yarn.lock ./
 COPY packages/core/package.json ./packages/core/
@@ -28,9 +25,6 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install runtime dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
-
 # Copy package files
 COPY package.json yarn.lock ./
 COPY packages/core/package.json ./packages/core/
@@ -43,13 +37,10 @@ RUN yarn install --frozen-lockfile --production
 COPY --from=builder /app/packages/core/dist ./packages/core/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 
-# Create data directory
-RUN mkdir -p /app/data
-
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV DATABASE_PATH=/app/data/skills.db
+ENV ENABLE_TEAM_SHARING=false
 
 EXPOSE 3001
 

@@ -1,6 +1,6 @@
 # Coolify Deployment Guide
 
-Deploy Claude Skill Sync server to Coolify.
+Deploy Claude Skill Sync server to Coolify with PostgreSQL and an optional dark launch for team sharing.
 
 ## Prerequisites
 
@@ -33,6 +33,7 @@ Add these environment variables in Coolify:
 
 ```
 # Required
+DATABASE_URL=<postgres-connection-string>
 JWT_SECRET=<generate-a-random-64-char-string>
 
 # Email (Resend)
@@ -42,6 +43,7 @@ FROM_EMAIL=noreply@claudeskill.io
 # Optional
 NODE_ENV=production
 PORT=3001
+ENABLE_TEAM_SHARING=false
 ```
 
 ### Generate JWT_SECRET
@@ -67,16 +69,24 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 3. Enable **HTTPS** (Let's Encrypt)
 4. Set port mapping: `3001`
 
-## Step 5: Configure Persistent Storage
+## Step 5: Apply the Production Migration
 
-The SQLite database needs persistent storage:
+Before the first deploy containing team sharing:
 
-1. Go to **Storages** in Coolify
-2. Add a volume:
-   - **Name**: `claude-skill-sync-data`
-   - **Mount Path**: `/app/data`
+```bash
+psql "$DATABASE_URL" -f packages/server/drizzle/prod/20260311_team_share_incremental.sql
+```
+
+This script is designed for the existing live schema. Do not use the generated baseline migration as your first production migration.
 
 ## Step 6: Deploy
+
+Recommended sequence:
+
+1. Deploy once with `ENABLE_TEAM_SHARING=false`
+2. Verify existing login, push, and pull still work
+3. Set `ENABLE_TEAM_SHARING=true`
+4. Redeploy
 
 1. Click **Deploy**
 2. Wait for build to complete
@@ -104,7 +114,9 @@ Check if Node.js version is correct. The server requires Node 20.6+.
 
 ### Database Errors
 
-Ensure the `/app/data` volume is mounted and writable.
+1. Verify `DATABASE_URL` is set correctly
+2. Ensure PostgreSQL is reachable from the Coolify host
+3. Confirm the incremental SQL migration has been applied
 
 ### Email Not Sending
 
@@ -128,7 +140,7 @@ If you prefer not to use Docker Compose, create a new resource with:
 | Dockerfile Location | `packages/server/Dockerfile` |
 | Base Directory | `/` |
 
-Then configure the same environment variables and storage.
+Then configure the same environment variables.
 
 ## Updating
 

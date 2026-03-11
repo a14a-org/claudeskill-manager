@@ -251,6 +251,31 @@ export const setMasterKey = async (
   });
 };
 
+export type SharingKeyResponse = {
+  hasKeypair: boolean;
+  publicKey?: string;
+  publicKeyFingerprint?: string | null;
+  encryptedPrivateKey?: string;
+  privateKeyIv?: string;
+  privateKeyTag?: string;
+};
+
+export const getSharingKey = async (): Promise<ApiResponse<SharingKeyResponse>> => {
+  return apiRequest("/account/sharing-key");
+};
+
+export const setSharingKey = async (
+  publicKey: string,
+  encryptedPrivateKey: string,
+  privateKeyIv: string,
+  privateKeyTag: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest("/account/sharing-key", {
+    method: "PUT",
+    body: JSON.stringify({ publicKey, encryptedPrivateKey, privateKeyIv, privateKeyTag }),
+  });
+};
+
 // =============================================================================
 // Blobs API
 // =============================================================================
@@ -438,4 +463,390 @@ export const checkHealth = async (): Promise<ApiResponse<HealthResponse>> => {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Network error", status: 0 };
   }
+};
+
+// =============================================================================
+// Teams API
+// =============================================================================
+
+export type TeamListItem = {
+  id: string;
+  name: string;
+  role: string;
+  status: string;
+  memberCount: number;
+  skillCount: number;
+  activeKeyVersion: number;
+  createdAt: string;
+};
+
+export type TeamListResponse = {
+  teams: TeamListItem[];
+};
+
+export const listTeams = async (): Promise<ApiResponse<TeamListResponse>> => {
+  return apiRequest("/teams");
+};
+
+export type TeamCreateResponse = {
+  id: string;
+  name: string;
+  role: string;
+  status: string;
+  activeKeyVersion?: number;
+  createdAt: string;
+};
+
+export const createTeam = async (name: string): Promise<ApiResponse<TeamCreateResponse>> => {
+  return apiRequest("/teams", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+};
+
+export type TeamMemberItem = {
+  userId: string;
+  email: string;
+  role: string;
+  status: string;
+  hasTeamKey: boolean;
+  publicKeyFingerprint?: string | null;
+  createdAt: string;
+};
+
+export type TeamSkillItem = {
+  id: string;
+  skillKey: string;
+  currentHash: string | null;
+  updatedAt: string;
+};
+
+export type TeamDetailResponse = {
+  id: string;
+  name: string;
+  role: string;
+  status: string;
+  members: TeamMemberItem[];
+  skills: TeamSkillItem[];
+  activeKeyVersion?: number;
+  createdAt: string;
+};
+
+export const getTeam = async (teamId: string): Promise<ApiResponse<TeamDetailResponse>> => {
+  return apiRequest(`/teams/${teamId}`);
+};
+
+export const updateTeam = async (
+  teamId: string,
+  name: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}`, {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+};
+
+export const deleteTeam = async (teamId: string): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}`, {
+    method: "DELETE",
+  });
+};
+
+// Team Members
+export type TeamMembersResponse = {
+  members: TeamMemberItem[];
+};
+
+export const listTeamMembers = async (
+  teamId: string
+): Promise<ApiResponse<TeamMembersResponse>> => {
+  return apiRequest(`/teams/${teamId}/members`);
+};
+
+export const updateTeamMemberRole = async (
+  teamId: string,
+  userId: string,
+  role: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}/members/${userId}`, {
+    method: "PUT",
+    body: JSON.stringify({ role }),
+  });
+};
+
+export const removeTeamMember = async (
+  teamId: string,
+  userId: string,
+  nextTeamKeyVersion: number,
+  envelopes: Array<{
+    recipientUserId: string;
+    encryptedTeamKey: string;
+    iv: string;
+    tag: string;
+    ephemeralPublicKey: string;
+  }>
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}/members/${userId}`, {
+    method: "DELETE",
+    body: JSON.stringify({ nextTeamKeyVersion, envelopes }),
+  });
+};
+
+export type PendingMemberItem = {
+  userId: string;
+  email: string;
+  role: string;
+  publicKey: string | null;
+  publicKeyFingerprint: string | null;
+  createdAt: string;
+};
+
+export type PendingMembersResponse = {
+  pendingMembers: PendingMemberItem[];
+};
+
+export const listPendingMembers = async (
+  teamId: string
+): Promise<ApiResponse<PendingMembersResponse>> => {
+  return apiRequest(`/teams/${teamId}/members/pending`);
+};
+
+export type AllPendingMemberItem = PendingMemberItem & {
+  teamId: string;
+  teamName: string;
+};
+
+export type AllPendingMembersResponse = {
+  pendingMembers: AllPendingMemberItem[];
+};
+
+export const listAllPendingMembers = async (): Promise<ApiResponse<AllPendingMembersResponse>> => {
+  return apiRequest("/teams/pending-members");
+};
+
+export const distributeTeamKey = async (
+  teamId: string,
+  userId: string,
+  encryptedTeamKey: string,
+  iv: string,
+  tag: string,
+  ephemeralPublicKey: string,
+  teamKeyVersion?: number
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}/members/${userId}/key`, {
+    method: "POST",
+    body: JSON.stringify({
+      encryptedTeamKey,
+      iv,
+      tag,
+      ephemeralPublicKey,
+      teamKeyVersion,
+    }),
+  });
+};
+
+export type MyTeamKeyResponse = {
+  encryptedTeamKey: string;
+  iv: string;
+  tag: string;
+  ephemeralPublicKey: string;
+  teamKeyVersion: number;
+  status: string;
+};
+
+export const getMyTeamKey = async (teamId: string): Promise<ApiResponse<MyTeamKeyResponse>> => {
+  return apiRequest(`/teams/${teamId}/my-key`);
+};
+
+// Team Invites
+export type TeamInviteItem = {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
+};
+
+export type TeamInvitesResponse = {
+  invites: TeamInviteItem[];
+};
+
+export const listTeamInvites = async (
+  teamId: string
+): Promise<ApiResponse<TeamInvitesResponse>> => {
+  return apiRequest(`/teams/${teamId}/invites`);
+};
+
+export type CreateInviteResponse = {
+  id: string;
+  token: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+};
+
+export const createTeamInvite = async (
+  teamId: string,
+  email: string,
+  role: string
+): Promise<ApiResponse<CreateInviteResponse>> => {
+  return apiRequest(`/teams/${teamId}/invites`, {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+};
+
+export const deleteTeamInvite = async (
+  teamId: string,
+  inviteId: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}/invites/${inviteId}`, {
+    method: "DELETE",
+  });
+};
+
+export type AcceptInviteResponse = {
+  teamId: string;
+  teamName: string;
+  role: string;
+  status: string;
+  message: string;
+};
+
+export const acceptTeamInvite = async (
+  token: string
+): Promise<ApiResponse<AcceptInviteResponse>> => {
+  return apiRequest("/teams/invites/accept", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+};
+
+export type PendingInviteItem = {
+  id: string;
+  teamId: string;
+  teamName: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+export type PendingInvitesResponse = {
+  invites: PendingInviteItem[];
+};
+
+export const listMyPendingInvites = async (): Promise<ApiResponse<PendingInvitesResponse>> => {
+  return apiRequest("/teams/invites/pending");
+};
+
+// User Keypair
+export type KeypairResponse = {
+  hasKeypair: boolean;
+  publicKey?: string;
+  publicKeyFingerprint?: string | null;
+  encryptedPrivateKey?: string;
+  privateKeyIv?: string;
+  privateKeyTag?: string;
+};
+
+export const getKeypair = async (): Promise<ApiResponse<KeypairResponse>> => {
+  return apiRequest("/teams/keypair");
+};
+
+export const setKeypair = async (
+  publicKey: string,
+  encryptedPrivateKey: string,
+  privateKeyIv: string,
+  privateKeyTag: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest("/teams/keypair", {
+    method: "PUT",
+    body: JSON.stringify({ publicKey, encryptedPrivateKey, privateKeyIv, privateKeyTag }),
+  });
+};
+
+// Team Skills
+export type TeamSkillListResponse = {
+  skills: TeamSkillItem[];
+};
+
+export const listTeamSkills = async (
+  teamId: string
+): Promise<ApiResponse<TeamSkillListResponse>> => {
+  return apiRequest(`/teams/${teamId}/skills`);
+};
+
+export type TeamSkillResponse = {
+  skillKey: string;
+  skillId: string;
+  hash: string;
+  encryptedData: string;
+  iv: string;
+  tag: string;
+  teamKeyVersion: number;
+  parentHash: string | null;
+  message: string | null;
+  createdAt: string;
+};
+
+export const getTeamSkill = async (
+  teamId: string,
+  skillKey: string
+): Promise<ApiResponse<TeamSkillResponse>> => {
+  return apiRequest(`/teams/${teamId}/skills/${encodeURIComponent(skillKey)}`);
+};
+
+export type TeamSkillVersionInfo = {
+  hash: string;
+  teamKeyVersion: number;
+  parentHash: string | null;
+  message: string | null;
+  createdAt: string;
+};
+
+export type TeamSkillVersionsResponse = {
+  skillKey: string;
+  currentHash: string | null;
+  versions: TeamSkillVersionInfo[];
+};
+
+export const getTeamSkillVersions = async (
+  teamId: string,
+  skillKey: string
+): Promise<ApiResponse<TeamSkillVersionsResponse>> => {
+  return apiRequest(`/teams/${teamId}/skills/${encodeURIComponent(skillKey)}/versions`);
+};
+
+export type PushTeamSkillResponse = {
+  skillId: string;
+  hash: string;
+  teamKeyVersion: number;
+  parentHash: string | null;
+  createdAt: string;
+};
+
+export const pushTeamSkillVersion = async (
+  teamId: string,
+  skillKey: string,
+  hash: string,
+  encryptedData: string,
+  iv: string,
+  tag: string,
+  teamKeyVersion: number,
+  message: string | undefined
+): Promise<ApiResponse<PushTeamSkillResponse>> => {
+  return apiRequest(`/teams/${teamId}/skills/${encodeURIComponent(skillKey)}/versions`, {
+    method: "POST",
+    body: JSON.stringify({ hash, encryptedData, iv, tag, teamKeyVersion, message }),
+  });
+};
+
+export const deleteTeamSkill = async (
+  teamId: string,
+  skillKey: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  return apiRequest(`/teams/${teamId}/skills/${encodeURIComponent(skillKey)}`, {
+    method: "DELETE",
+  });
 };

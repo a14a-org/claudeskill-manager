@@ -18,7 +18,16 @@ import { runPull } from "./commands/pull.js";
 import { runLog } from "./commands/log.js";
 import { runCheckout } from "./commands/checkout.js";
 import { runDiff } from "./commands/diff.js";
+import {
+  runTeamList,
+  runTeamCreate,
+  runTeamShow,
+  runTeamInvite,
+  runTeamAccept,
+} from "./commands/team.js";
 import { loadConfig } from "./config.js";
+import { loadCredentials } from "./credentials.js";
+import { getMasterKey } from "./sync.js";
 
 const VERSION = "0.1.0";
 
@@ -44,6 +53,13 @@ Commands:
   config           Show or modify configuration
   help             Show this help message
 
+Team Commands:
+  team list                        List your teams
+  team create <name>               Create a new team
+  team show <team-id>              Show team details
+  team invite <team-id> <email> [role]  Invite member (role: admin|editor|viewer)
+  team accept <token>              Accept team invite
+
 List Options:
   --tree           Show dependency tree
   --tools          Show tool usage matrix
@@ -60,9 +76,36 @@ Examples:
   $ claude-skill-sync list         # List all skills
   $ claude-skill-sync list --tree  # Show dependency graph
   $ claude-skill-sync push         # Push local changes
+  $ claude-skill-sync team create "My Team"  # Create a team
+  $ claude-skill-sync team invite abc123 bob@example.com editor
 
 Learn more: https://claudeskill.io
 `);
+};
+
+const promptForMasterKey = async (): Promise<Uint8Array | null> => {
+  const credentials = await loadCredentials();
+  if (!credentials?.salt || !credentials.encryptedMasterKey) {
+    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    return null;
+  }
+
+  const passphrase = await p.password({
+    message: "Enter your passphrase:",
+  });
+
+  if (p.isCancel(passphrase)) {
+    p.log.warning("Cancelled");
+    return null;
+  }
+
+  const masterKey = await getMasterKey(passphrase as string);
+  if (!masterKey) {
+    p.log.error("Invalid passphrase.");
+    return null;
+  }
+
+  return masterKey;
 };
 
 const main = async (): Promise<void> => {
@@ -170,6 +213,77 @@ const main = async (): Promise<void> => {
         p.log.warning("Not configured. Run 'claude-skill-sync' to set up.");
       }
       break;
+
+    case "team": {
+      const subCommand = args[1];
+
+      switch (subCommand) {
+        case "list":
+          await runTeamList();
+          break;
+
+        case "create": {
+          const name = args[2];
+          if (!name) {
+            p.log.error("Usage: claude-skill-sync team create <name>");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) {
+            return;
+          }
+          await runTeamCreate(name, masterKey);
+          break;
+        }
+
+        case "show": {
+          const teamId = args[2];
+          if (!teamId) {
+            p.log.error("Usage: claude-skill-sync team show <team-id>");
+            return;
+          }
+          await runTeamShow(teamId);
+          break;
+        }
+
+        case "invite": {
+          const teamId = args[2];
+          const email = args[3];
+          const role = args[4] ?? "editor";
+          if (!teamId || !email) {
+            p.log.error("Usage: claude-skill-sync team invite <team-id> <email> [role]");
+            return;
+          }
+          await runTeamInvite(teamId, email, role);
+          break;
+        }
+
+        case "accept": {
+          const token = args[2];
+          if (!token) {
+            p.log.error("Usage: claude-skill-sync team accept <token>");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) {
+            return;
+          }
+          await runTeamAccept(token, masterKey);
+          break;
+        }
+
+        default:
+          p.log.error(`Unknown team command: ${subCommand}`);
+          console.log("\nTeam Commands:");
+          console.log("  team list                        List your teams");
+          console.log("  team create <name>               Create a new team");
+          console.log("  team show <team-id>              Show team details");
+          console.log("  team invite <team-id> <email> [role]  Invite member");
+          console.log("  team accept <token>              Accept team invite");
+          break;
+      }
+      break;
+    }
 
     default:
       p.log.error(`Unknown command: ${command}`);

@@ -5,6 +5,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, and, gt, lt, desc, sql, count } from "drizzle-orm";
 import postgres from "postgres";
+import { createHash } from "node:crypto";
 import {
   users,
   otpCodes,
@@ -12,12 +13,24 @@ import {
   blobs,
   skills,
   skillVersions,
+  teams,
+  teamMembers,
+  teamKeyEnvelopes,
+  teamInvites,
+  teamSkills,
+  teamSkillVersions,
   type User,
   type OtpCode,
   type Session,
   type Blob,
   type Skill,
   type SkillVersion,
+  type Team,
+  type TeamMember,
+  type TeamKeyEnvelope,
+  type TeamInvite,
+  type TeamSkill,
+  type TeamSkillVersion,
 } from "./schema.js";
 
 // Re-export types with legacy names for backward compatibility
@@ -27,6 +40,12 @@ export type SessionRecord = Session;
 export type BlobRecord = Blob;
 export type SkillRecord = Skill;
 export type SkillVersionRecord = SkillVersion;
+export type TeamRecord = Team;
+export type TeamMemberRecord = TeamMember;
+export type TeamKeyEnvelopeRecord = TeamKeyEnvelope;
+export type TeamInviteRecord = TeamInvite;
+export type TeamSkillRecord = TeamSkill;
+export type TeamSkillVersionRecord = TeamSkillVersion;
 
 // =============================================================================
 // Database Connection
@@ -39,6 +58,14 @@ if (!connectionString) {
 
 const client = postgres(connectionString);
 const db = drizzle(client);
+
+const computePublicKeyFingerprint = (publicKey: string): string => {
+  const digest = createHash("sha256")
+    .update(Buffer.from(publicKey, "base64"))
+    .digest("hex")
+    .slice(0, 32);
+  return digest.match(/.{1,4}/g)?.join("-") ?? digest;
+};
 
 /**
  * Get database instance (for compatibility)
@@ -426,4 +453,787 @@ export const countSkillVersions = async (skillId: string): Promise<number> => {
     .from(skillVersions)
     .where(eq(skillVersions.skillId, skillId));
   return result[0]?.count ?? 0;
+};
+
+// =============================================================================
+// User keypair queries
+// =============================================================================
+
+export const updateUserPublicKey = async (
+  userId: string,
+  publicKey: string,
+  encryptedPrivateKey: string,
+  privateKeyIv: string,
+  privateKeyTag: string
+): Promise<void> => {
+  const publicKeyFingerprint = computePublicKeyFingerprint(publicKey);
+
+  await db
+    .update(users)
+    .set({
+      publicKey,
+      publicKeyFingerprint,
+      encryptedPrivateKey,
+      privateKeyIv,
+      privateKeyTag,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId));
+};
+
+export const getUserPublicKey = async (
+  userId: string
+): Promise<{ publicKey: string; publicKeyFingerprint: string | null } | undefined> => {
+  const result = await db
+    .select({
+      publicKey: users.publicKey,
+      publicKeyFingerprint: users.publicKeyFingerprint,
+    })
+    .from(users)
+    .where(eq(users.id, userId));
+  if (!result[0]?.publicKey) return undefined;
+  return {
+    publicKey: result[0].publicKey,
+    publicKeyFingerprint: result[0].publicKeyFingerprint,
+  };
+};
+
+export const getUserKeyPair = async (
+  userId: string
+): Promise<{
+  publicKey: string;
+  publicKeyFingerprint: string | null;
+  encryptedPrivateKey: string;
+  privateKeyIv: string;
+  privateKeyTag: string;
+} | null> => {
+  const result = await db
+    .select({
+      publicKey: users.publicKey,
+      publicKeyFingerprint: users.publicKeyFingerprint,
+      encryptedPrivateKey: users.encryptedPrivateKey,
+      privateKeyIv: users.privateKeyIv,
+      privateKeyTag: users.privateKeyTag,
+    })
+    .from(users)
+    .where(eq(users.id, userId));
+
+  const row = result[0];
+  if (
+    !row?.publicKey ||
+    !row?.encryptedPrivateKey ||
+    !row?.privateKeyIv ||
+    !row?.privateKeyTag
+  ) {
+    return null;
+  }
+
+  return {
+    publicKey: row.publicKey,
+    publicKeyFingerprint: row.publicKeyFingerprint,
+    encryptedPrivateKey: row.encryptedPrivateKey,
+    privateKeyIv: row.privateKeyIv,
+    privateKeyTag: row.privateKeyTag,
+  };
+};
+
+// =============================================================================
+// Team queries
+// =============================================================================
+
+export const createTeam = async (
+  name: string,
+  ownerId: string
+): Promise<Team> => {
+  const result = await db
+    .insert(teams)
+    .values({ name, ownerId })
+    .returning();
+  return result[0]!;
+};
+
+export const findTeamById = async (id: string): Promise<Team | undefined> => {
+  const result = await db.select().from(teams).where(eq(teams.id, id));
+  return result[0];
+};
+
+export const updateTeamName = async (
+  teamId: string,
+  name: string
+): Promise<void> => {
+  await db
+    .update(teams)
+    .set({ name, updatedAt: new Date() })
+    .where(eq(teams.id, teamId));
+};
+
+export const deleteTeam = async (teamId: string): Promise<boolean> => {
+  const result = await db
+    .delete(teams)
+    .where(eq(teams.id, teamId))
+    .returning({ id: teams.id });
+  return result.length > 0;
+};
+
+export type TeamWithMemberInfo = Team & {
+  role: string;
+  status: string;
+  memberCount: number;
+  skillCount: number;
+  activeKeyVersion: number;
+};
+
+export const listUserTeams = async (
+  userId: string
+): Promise<TeamWithMemberInfo[]> => {
+  // Get teams the user is a member of
+  const memberTeams = await db
+    .select({
+      id: teams.id,
+      name: teams.name,
+      activeKeyVersion: teams.activeKeyVersion,
+      ownerId: teams.ownerId,
+      createdAt: teams.createdAt,
+      updatedAt: teams.updatedAt,
+      role: teamMembers.role,
+      status: teamMembers.status,
+    })
+    .from(teamMembers)
+    .innerJoin(teams, eq(teamMembers.teamId, teams.id))
+    .where(eq(teamMembers.userId, userId));
+
+  // Get member counts and skill counts for each team
+  const result: TeamWithMemberInfo[] = [];
+  for (const team of memberTeams) {
+    const [memberCountResult, skillCountResult] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(teamMembers)
+        .where(eq(teamMembers.teamId, team.id)),
+      db
+        .select({ count: count() })
+        .from(teamSkills)
+        .where(eq(teamSkills.teamId, team.id)),
+    ]);
+
+    result.push({
+      ...team,
+      memberCount: memberCountResult[0]?.count ?? 0,
+      skillCount: skillCountResult[0]?.count ?? 0,
+    });
+  }
+
+  return result;
+};
+
+// =============================================================================
+// Team member queries
+// =============================================================================
+
+export const addTeamMember = async (
+  teamId: string,
+  userId: string,
+  role: string,
+  status: string = "pending"
+): Promise<TeamMember> => {
+  const result = await db
+    .insert(teamMembers)
+    .values({ teamId, userId, role, status })
+    .returning();
+  return result[0]!;
+};
+
+export const findTeamMember = async (
+  teamId: string,
+  userId: string
+): Promise<TeamMember | undefined> => {
+  const result = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  return result[0];
+};
+
+export const updateTeamMemberStatus = async (
+  teamId: string,
+  userId: string,
+  status: string
+): Promise<void> => {
+  await db
+    .update(teamMembers)
+    .set({ status, updatedAt: new Date() })
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+};
+
+export const updateTeamMemberRole = async (
+  teamId: string,
+  userId: string,
+  role: string
+): Promise<void> => {
+  await db
+    .update(teamMembers)
+    .set({ role, updatedAt: new Date() })
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+};
+
+export const setTeamMemberKey = async (
+  teamId: string,
+  userId: string,
+  encryptedTeamKey: string,
+  teamKeyIv: string,
+  teamKeyTag: string,
+  ephemeralPublicKey: string,
+  teamKeyVersion: number,
+  wrappedByUserId: string
+): Promise<void> => {
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(teamKeyEnvelopes)
+      .values({
+        teamId,
+        teamKeyVersion,
+        recipientUserId: userId,
+        wrappedByUserId,
+        encryptedTeamKey,
+        iv: teamKeyIv,
+        tag: teamKeyTag,
+        ephemeralPublicKey,
+      })
+      .onConflictDoUpdate({
+        target: [
+          teamKeyEnvelopes.teamId,
+          teamKeyEnvelopes.teamKeyVersion,
+          teamKeyEnvelopes.recipientUserId,
+        ],
+        set: {
+          wrappedByUserId,
+          encryptedTeamKey,
+          iv: teamKeyIv,
+          tag: teamKeyTag,
+          ephemeralPublicKey,
+          createdAt: new Date(),
+        },
+      });
+
+    await tx
+      .update(teamMembers)
+      .set({
+        encryptedTeamKey,
+        teamKeyIv,
+        teamKeyTag,
+        ephemeralPublicKey,
+        status: "active",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)));
+  });
+};
+
+export const removeTeamMember = async (
+  teamId: string,
+  userId: string
+): Promise<boolean> => {
+  const result = await db
+    .delete(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .returning({ teamId: teamMembers.teamId });
+  return result.length > 0;
+};
+
+export const getTeamActiveKeyVersion = async (
+  teamId: string
+): Promise<number | null> => {
+  const result = await db
+    .select({ activeKeyVersion: teams.activeKeyVersion })
+    .from(teams)
+    .where(eq(teams.id, teamId));
+  return result[0]?.activeKeyVersion ?? null;
+};
+
+export type TeamEnvelopeInput = {
+  recipientUserId: string;
+  encryptedTeamKey: string;
+  iv: string;
+  tag: string;
+  ephemeralPublicKey: string;
+};
+
+export const rotateTeamKeyAndRemoveMember = async (
+  teamId: string,
+  removedUserId: string,
+  nextTeamKeyVersion: number,
+  wrappedByUserId: string,
+  envelopes: TeamEnvelopeInput[]
+): Promise<void> => {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(teamMembers)
+      .where(
+        and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, removedUserId))
+      );
+
+    await tx
+      .update(teams)
+      .set({ activeKeyVersion: nextTeamKeyVersion, updatedAt: new Date() })
+      .where(eq(teams.id, teamId));
+
+    for (const envelope of envelopes) {
+      await tx
+        .insert(teamKeyEnvelopes)
+        .values({
+          teamId,
+          teamKeyVersion: nextTeamKeyVersion,
+          recipientUserId: envelope.recipientUserId,
+          wrappedByUserId,
+          encryptedTeamKey: envelope.encryptedTeamKey,
+          iv: envelope.iv,
+          tag: envelope.tag,
+          ephemeralPublicKey: envelope.ephemeralPublicKey,
+        })
+        .onConflictDoUpdate({
+          target: [
+            teamKeyEnvelopes.teamId,
+            teamKeyEnvelopes.teamKeyVersion,
+            teamKeyEnvelopes.recipientUserId,
+          ],
+          set: {
+            wrappedByUserId,
+            encryptedTeamKey: envelope.encryptedTeamKey,
+            iv: envelope.iv,
+            tag: envelope.tag,
+            ephemeralPublicKey: envelope.ephemeralPublicKey,
+            createdAt: new Date(),
+          },
+        });
+
+      await tx
+        .update(teamMembers)
+        .set({
+          encryptedTeamKey: envelope.encryptedTeamKey,
+          teamKeyIv: envelope.iv,
+          teamKeyTag: envelope.tag,
+          ephemeralPublicKey: envelope.ephemeralPublicKey,
+          status: "active",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(teamMembers.teamId, teamId),
+            eq(teamMembers.userId, envelope.recipientUserId)
+          )
+        );
+    }
+  });
+};
+
+export type TeamMemberWithEmail = TeamMember & { email: string };
+
+export const listTeamMembers = async (
+  teamId: string
+): Promise<TeamMemberWithEmail[]> => {
+  const result = await db
+    .select({
+      teamId: teamMembers.teamId,
+      userId: teamMembers.userId,
+      role: teamMembers.role,
+      status: teamMembers.status,
+      encryptedTeamKey: teamMembers.encryptedTeamKey,
+      teamKeyIv: teamMembers.teamKeyIv,
+      teamKeyTag: teamMembers.teamKeyTag,
+      ephemeralPublicKey: teamMembers.ephemeralPublicKey,
+      createdAt: teamMembers.createdAt,
+      updatedAt: teamMembers.updatedAt,
+      email: users.email,
+    })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(eq(teamMembers.teamId, teamId));
+  return result;
+};
+
+export const getActiveTeamKeyEnvelopeForMember = async (
+  teamId: string,
+  userId: string
+): Promise<
+  | {
+      encryptedTeamKey: string;
+      iv: string;
+      tag: string;
+      ephemeralPublicKey: string;
+      teamKeyVersion: number;
+    }
+  | null
+> => {
+  const activeKeyVersion = await getTeamActiveKeyVersion(teamId);
+  if (!activeKeyVersion) {
+    return null;
+  }
+
+  const result = await db
+    .select({
+      encryptedTeamKey: teamKeyEnvelopes.encryptedTeamKey,
+      iv: teamKeyEnvelopes.iv,
+      tag: teamKeyEnvelopes.tag,
+      ephemeralPublicKey: teamKeyEnvelopes.ephemeralPublicKey,
+      teamKeyVersion: teamKeyEnvelopes.teamKeyVersion,
+    })
+    .from(teamKeyEnvelopes)
+    .where(
+      and(
+        eq(teamKeyEnvelopes.teamId, teamId),
+        eq(teamKeyEnvelopes.teamKeyVersion, activeKeyVersion),
+        eq(teamKeyEnvelopes.recipientUserId, userId)
+      )
+    );
+
+  return result[0] ?? null;
+};
+
+export const listPendingTeamMembers = async (
+  teamId: string
+): Promise<TeamMemberWithEmail[]> => {
+  const result = await db
+    .select({
+      teamId: teamMembers.teamId,
+      userId: teamMembers.userId,
+      role: teamMembers.role,
+      status: teamMembers.status,
+      encryptedTeamKey: teamMembers.encryptedTeamKey,
+      teamKeyIv: teamMembers.teamKeyIv,
+      teamKeyTag: teamMembers.teamKeyTag,
+      ephemeralPublicKey: teamMembers.ephemeralPublicKey,
+      createdAt: teamMembers.createdAt,
+      updatedAt: teamMembers.updatedAt,
+      email: users.email,
+    })
+    .from(teamMembers)
+    .innerJoin(users, eq(teamMembers.userId, users.id))
+    .where(
+      and(eq(teamMembers.teamId, teamId), eq(teamMembers.status, "pending"))
+    );
+  return result;
+};
+
+// Get pending members across all teams where user is owner/admin
+export const listAllPendingMembersForUser = async (
+  userId: string
+): Promise<
+  (TeamMemberWithEmail & {
+    teamName: string;
+    memberPublicKey: string | null;
+    memberPublicKeyFingerprint: string | null;
+  })[]
+> => {
+  // First get teams where user is an active owner.
+  const userTeams = await db
+    .select({ teamId: teamMembers.teamId })
+    .from(teamMembers)
+    .where(
+      and(
+        eq(teamMembers.userId, userId),
+        eq(teamMembers.status, "active"),
+        eq(teamMembers.role, "owner")
+      )
+    );
+
+  const result: (TeamMemberWithEmail & {
+    teamName: string;
+    memberPublicKey: string | null;
+    memberPublicKeyFingerprint: string | null;
+  })[] = [];
+
+  for (const { teamId } of userTeams) {
+    // Check if user still has permission (owner only).
+    const membership = await findTeamMember(teamId, userId);
+    if (!membership || membership.role !== "owner") {
+      continue;
+    }
+
+    const team = await findTeamById(teamId);
+    if (!team) continue;
+
+    const pendingMembers = await db
+      .select({
+        teamId: teamMembers.teamId,
+        userId: teamMembers.userId,
+        role: teamMembers.role,
+        status: teamMembers.status,
+        encryptedTeamKey: teamMembers.encryptedTeamKey,
+        teamKeyIv: teamMembers.teamKeyIv,
+        teamKeyTag: teamMembers.teamKeyTag,
+        ephemeralPublicKey: teamMembers.ephemeralPublicKey,
+        createdAt: teamMembers.createdAt,
+        updatedAt: teamMembers.updatedAt,
+        email: users.email,
+        memberPublicKey: users.publicKey,
+        memberPublicKeyFingerprint: users.publicKeyFingerprint,
+      })
+      .from(teamMembers)
+      .innerJoin(users, eq(teamMembers.userId, users.id))
+      .where(
+        and(eq(teamMembers.teamId, teamId), eq(teamMembers.status, "pending"))
+      );
+
+    for (const member of pendingMembers) {
+      result.push({
+        ...member,
+        teamName: team.name,
+      });
+    }
+  }
+
+  return result;
+};
+
+// =============================================================================
+// Team invite queries
+// =============================================================================
+
+export const createTeamInvite = async (
+  teamId: string,
+  email: string,
+  role: string,
+  tokenHash: string,
+  createdBy: string,
+  expiresInHours: number = 72
+): Promise<TeamInvite> => {
+  const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+  const result = await db
+    .insert(teamInvites)
+    .values({ teamId, email, role, tokenHash, createdBy, expiresAt })
+    .returning();
+  return result[0]!;
+};
+
+export const findTeamInviteByTokenHash = async (
+  tokenHash: string
+): Promise<(TeamInvite & { teamName: string }) | undefined> => {
+  const result = await db
+    .select({
+      id: teamInvites.id,
+      teamId: teamInvites.teamId,
+      email: teamInvites.email,
+      role: teamInvites.role,
+      tokenHash: teamInvites.tokenHash,
+      expiresAt: teamInvites.expiresAt,
+      usedAt: teamInvites.usedAt,
+      createdBy: teamInvites.createdBy,
+      createdAt: teamInvites.createdAt,
+      teamName: teams.name,
+    })
+    .from(teamInvites)
+    .innerJoin(teams, eq(teamInvites.teamId, teams.id))
+    .where(eq(teamInvites.tokenHash, tokenHash));
+  return result[0];
+};
+
+export const findValidTeamInvite = async (
+  tokenHash: string
+): Promise<(TeamInvite & { teamName: string }) | undefined> => {
+  const result = await db
+    .select({
+      id: teamInvites.id,
+      teamId: teamInvites.teamId,
+      email: teamInvites.email,
+      role: teamInvites.role,
+      tokenHash: teamInvites.tokenHash,
+      expiresAt: teamInvites.expiresAt,
+      usedAt: teamInvites.usedAt,
+      createdBy: teamInvites.createdBy,
+      createdAt: teamInvites.createdAt,
+      teamName: teams.name,
+    })
+    .from(teamInvites)
+    .innerJoin(teams, eq(teamInvites.teamId, teams.id))
+    .where(
+      and(
+        eq(teamInvites.tokenHash, tokenHash),
+        gt(teamInvites.expiresAt, new Date()),
+        sql`${teamInvites.usedAt} IS NULL`
+      )
+    );
+  return result[0];
+};
+
+export const markTeamInviteUsed = async (inviteId: string): Promise<void> => {
+  await db
+    .update(teamInvites)
+    .set({ usedAt: new Date() })
+    .where(eq(teamInvites.id, inviteId));
+};
+
+export const listTeamInvites = async (
+  teamId: string
+): Promise<TeamInvite[]> => {
+  return db
+    .select()
+    .from(teamInvites)
+    .where(eq(teamInvites.teamId, teamId))
+    .orderBy(desc(teamInvites.createdAt));
+};
+
+export const listPendingInvitesForEmail = async (
+  email: string
+): Promise<(TeamInvite & { teamName: string })[]> => {
+  return db
+    .select({
+      id: teamInvites.id,
+      teamId: teamInvites.teamId,
+      email: teamInvites.email,
+      role: teamInvites.role,
+      tokenHash: teamInvites.tokenHash,
+      expiresAt: teamInvites.expiresAt,
+      usedAt: teamInvites.usedAt,
+      createdBy: teamInvites.createdBy,
+      createdAt: teamInvites.createdAt,
+      teamName: teams.name,
+    })
+    .from(teamInvites)
+    .innerJoin(teams, eq(teamInvites.teamId, teams.id))
+    .where(
+      and(
+        eq(teamInvites.email, email),
+        gt(teamInvites.expiresAt, new Date()),
+        sql`${teamInvites.usedAt} IS NULL`
+      )
+    )
+    .orderBy(desc(teamInvites.createdAt));
+};
+
+export const deleteTeamInvite = async (inviteId: string): Promise<boolean> => {
+  const result = await db
+    .delete(teamInvites)
+    .where(eq(teamInvites.id, inviteId))
+    .returning({ id: teamInvites.id });
+  return result.length > 0;
+};
+
+export const cleanupExpiredTeamInvites = async (): Promise<void> => {
+  await db.delete(teamInvites).where(lt(teamInvites.expiresAt, new Date()));
+};
+
+// =============================================================================
+// Team skill queries
+// =============================================================================
+
+export const createTeamSkill = async (
+  teamId: string,
+  skillKey: string,
+  createdBy: string
+): Promise<TeamSkill> => {
+  const result = await db
+    .insert(teamSkills)
+    .values({ teamId, skillKey, createdBy })
+    .returning();
+  return result[0]!;
+};
+
+export const findTeamSkillByKey = async (
+  teamId: string,
+  skillKey: string
+): Promise<TeamSkill | undefined> => {
+  const result = await db
+    .select()
+    .from(teamSkills)
+    .where(
+      and(eq(teamSkills.teamId, teamId), eq(teamSkills.skillKey, skillKey))
+    );
+  return result[0];
+};
+
+export const listTeamSkills = async (
+  teamId: string
+): Promise<Pick<TeamSkill, "id" | "skillKey" | "currentHash" | "updatedAt">[]> => {
+  return db
+    .select({
+      id: teamSkills.id,
+      skillKey: teamSkills.skillKey,
+      currentHash: teamSkills.currentHash,
+      updatedAt: teamSkills.updatedAt,
+    })
+    .from(teamSkills)
+    .where(eq(teamSkills.teamId, teamId))
+    .orderBy(desc(teamSkills.updatedAt));
+};
+
+export const updateTeamSkillCurrentHash = async (
+  skillId: string,
+  hash: string
+): Promise<void> => {
+  await db
+    .update(teamSkills)
+    .set({ currentHash: hash, updatedAt: new Date() })
+    .where(eq(teamSkills.id, skillId));
+};
+
+export const deleteTeamSkill = async (skillId: string): Promise<boolean> => {
+  const result = await db
+    .delete(teamSkills)
+    .where(eq(teamSkills.id, skillId))
+    .returning({ id: teamSkills.id });
+  return result.length > 0;
+};
+
+// =============================================================================
+// Team skill version queries
+// =============================================================================
+
+export const createTeamSkillVersion = async (
+  skillId: string,
+  hash: string,
+  encryptedData: string,
+  iv: string,
+  tag: string,
+  teamKeyVersion: number,
+  parentHash: string | null,
+  message: string | null,
+  createdBy: string
+): Promise<TeamSkillVersion> => {
+  const result = await db
+    .insert(teamSkillVersions)
+    .values({
+      skillId,
+      hash,
+      encryptedData,
+      iv,
+      tag,
+      teamKeyVersion,
+      parentHash,
+      message,
+      createdBy,
+    })
+    .onConflictDoUpdate({
+      target: [teamSkillVersions.skillId, teamSkillVersions.hash],
+      set: { encryptedData, iv, tag },
+    })
+    .returning();
+  return result[0]!;
+};
+
+export const findTeamSkillVersion = async (
+  skillId: string,
+  hash: string
+): Promise<TeamSkillVersion | undefined> => {
+  const result = await db
+    .select()
+    .from(teamSkillVersions)
+    .where(
+      and(
+        eq(teamSkillVersions.skillId, skillId),
+        eq(teamSkillVersions.hash, hash)
+      )
+    );
+  return result[0];
+};
+
+export const listTeamSkillVersions = async (
+  skillId: string,
+  limit = 50
+): Promise<TeamSkillVersion[]> => {
+  return db
+    .select()
+    .from(teamSkillVersions)
+    .where(eq(teamSkillVersions.skillId, skillId))
+    .orderBy(desc(teamSkillVersions.createdAt))
+    .limit(limit);
 };
