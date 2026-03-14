@@ -236,6 +236,24 @@ export const pushSkills = async (
     .filter((r) => r.type === 'error')
     .map((r) => r.type === 'error' ? r.message : '');
 
+  // Delete remote skills with hidden-file names (e.g. .DS_Store, .gitignore
+  // that were synced before the filter was in place)
+  const localSkillKeys = new Set(skills.map((s) => getSkillKey(s)));
+  const remoteList = await api.listSkills();
+  if (remoteList.ok) {
+    const hiddenRemote = (remoteList.data as { skills: { skillKey: string }[] }).skills.filter((s) => {
+      const name = s.skillKey.split(':').slice(1).join(':');
+      return name.startsWith('.');
+    });
+    await Promise.all(
+      hiddenRemote.map(async (s) => {
+        onProgress?.(`Removing hidden file ${s.skillKey} from remote...`);
+        await api.deleteSkill(s.skillKey);
+        delete index.skills[s.skillKey];
+      })
+    );
+  }
+
   // Save updated index
   index.lastSyncAt = new Date().toISOString();
   await saveSyncIndex(index);
@@ -270,7 +288,14 @@ export const pullSkills = async (
   }
 
   const results = await Promise.all(
-    listResult.data.skills.map(async (remoteSkill) => {
+    listResult.data.skills
+    .filter((remoteSkill) => {
+      // Skip hidden-named skills (e.g. .DS_Store, .gitignore) — they should
+      // never have been synced and must not be written to disk
+      const name = remoteSkill.skillKey.split(':').slice(1).join(':');
+      return !name.startsWith('.');
+    })
+    .map(async (remoteSkill) => {
       const existing = index.skills[remoteSkill.skillKey];
 
       // Skip if unchanged (same hash)
@@ -404,9 +429,10 @@ export const getSyncStatus = async () => {
   const listResult = await api.listSkills();
   const localSkillKeys = new Set(skills.map((s) => getSkillKey(s)));
   const pendingPull = listResult.ok
-    ? listResult.data.skills.filter(
-        (s) => s.currentHash && !localSkillKeys.has(s.skillKey)
-      ).length
+    ? listResult.data.skills.filter((s) => {
+        const name = s.skillKey.split(':').slice(1).join(':');
+        return s.currentHash && !localSkillKeys.has(s.skillKey) && !name.startsWith('.');
+      }).length
     : 0;
 
   return {
