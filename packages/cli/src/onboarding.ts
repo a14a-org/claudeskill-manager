@@ -357,10 +357,10 @@ export const runOnboarding = async () => {
   // Done!
   p.note(
     `
-claude-skill-sync list        List all skills
-claude-skill-sync pull        Pull from cloud
-claude-skill-sync push        Push to cloud
-claude-skill-sync status      Check sync status
+claudeskill list        List all skills
+claudeskill pull        Pull from cloud
+claudeskill push        Push to cloud
+claudeskill status      Check sync status
     `.trim(),
     "Quick commands"
   );

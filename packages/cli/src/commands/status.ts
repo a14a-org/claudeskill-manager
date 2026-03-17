@@ -101,10 +101,10 @@ export const runStatus = async () => {
 
   // Helpful hints
   if (!credentials?.accessToken && config.mode !== "local") {
-    p.log.info("Run 'claude-skill-sync login' to connect to the server.");
+    p.log.info("Run 'claudeskill login' to connect to the server.");
   } else if (status.pendingPush > 0) {
-    p.log.info("Run 'claude-skill-sync push' to upload your changes.");
+    p.log.info("Run 'claudeskill push' to upload your changes.");
   } else if (status.pendingPull > 0) {
-    p.log.info("Run 'claude-skill-sync pull' to download remote changes.");
+    p.log.info("Run 'claudeskill pull' to download remote changes.");
   }
 };

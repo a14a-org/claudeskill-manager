@@ -1,5 +1,5 @@
 /**
- * @claude-skill-sync/core
+ * @claudeskill/core
  *
  * Core encryption and skill management for Claude Skill Sync
  */

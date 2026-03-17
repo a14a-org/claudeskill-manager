@@ -13,10 +13,10 @@
  * 3. Team skill data is encrypted with team master key
  */
 
-import { argon2id } from "@noble/hashes/argon2";
+import { argon2id } from "@noble/hashes/argon2.js";
 import { x25519 } from "@noble/curves/ed25519.js";
-import { hkdf } from "@noble/hashes/hkdf";
-import { sha256 } from "@noble/hashes/sha256";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import {
   randomBytes,
   createCipheriv,
@@ -352,7 +352,7 @@ const deriveSharedKey = (
   const sharedSecret = x25519.getSharedSecret(privateKey, publicKey);
 
   // Use HKDF to derive a proper AES key from the shared secret
-  const derivedKey = hkdf(sha256, sharedSecret, undefined, context, AES_KEY_LENGTH);
+  const derivedKey = hkdf(sha256, sharedSecret, undefined, new TextEncoder().encode(context), AES_KEY_LENGTH);
 
   return derivedKey;
 };

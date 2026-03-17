@@ -29,7 +29,7 @@ export const runCheckout = async (skillKey: string, hash: string) => {
   const config = await loadConfig();
 
   if (!config) {
-    p.log.error("Not configured. Run 'claude-skill-sync' first to set up.");
+    p.log.error("Not configured. Run 'claudeskill' first to set up.");
     return;
   }
 
@@ -40,7 +40,7 @@ export const runCheckout = async (skillKey: string, hash: string) => {
 
   const credentials = await loadCredentials();
   if (!credentials?.accessToken) {
-    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    p.log.error("Not logged in. Run 'claudeskill login' first.");
     return;
   }
 
@@ -144,7 +144,7 @@ export const runCheckout = async (skillKey: string, hash: string) => {
     const hash = Array.from(content).reduce((hash, char) => {
       const code = char.charCodeAt(0);
       const newHash = (hash << 5) - hash + code;
-      return newHash & newHash;
+      return newHash | 0;
     }, 0);
     return hash.toString(16);
   };

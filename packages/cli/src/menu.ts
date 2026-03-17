@@ -151,21 +151,21 @@ const showHelp = () => {
   console.log(`
 Commands (can also be run directly):
 
-  claude-skill-sync              Interactive menu (this)
-  claude-skill-sync list         List all skills
-  claude-skill-sync list --tree  Show dependency graph
-  claude-skill-sync list --tools Show tool usage matrix
-  claude-skill-sync status       Show sync status
-  claude-skill-sync push         Push local changes
-  claude-skill-sync pull         Pull remote changes
-  claude-skill-sync login        Login to account
-  claude-skill-sync logout       Logout
+  claudeskill              Interactive menu (this)
+  claudeskill list         List all skills
+  claudeskill list --tree  Show dependency graph
+  claudeskill list --tools Show tool usage matrix
+  claudeskill status       Show sync status
+  claudeskill push         Push local changes
+  claudeskill pull         Pull remote changes
+  claudeskill login        Login to account
+  claudeskill logout       Logout
 
 Version History:
 
-  claude-skill-sync log <skill>              Show version history
-  claude-skill-sync checkout <skill> <hash>  Restore a version
-  claude-skill-sync diff <skill> <h1> <h2>   Compare versions
+  claudeskill log <skill>              Show version history
+  claudeskill checkout <skill> <hash>  Restore a version
+  claudeskill diff <skill> <h1> <h2>   Compare versions
 
 Learn more: https://claudeskill.io
 `);
