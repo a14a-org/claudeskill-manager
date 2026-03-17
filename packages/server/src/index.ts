@@ -11,6 +11,8 @@ import { authRoutes } from "./routes/auth.js";
 import { blobRoutes } from "./routes/blobs.js";
 import { accountRoutes } from "./routes/account.js";
 import { skillsRouter } from "./routes/skills.js";
+import { publicSkillsRouter } from "./routes/public-skills.js";
+import { adminRouter } from "./routes/admin.js";
 import { teamsRouter } from "./routes/teams.js";
 
 const app = new Hono();
@@ -57,6 +59,8 @@ app.route("/auth", authRoutes);
 app.route("/blobs", blobRoutes);
 app.route("/account", accountRoutes);
 app.route("/skills", skillsRouter);
+app.route("/public/skills", publicSkillsRouter);
+app.route("/admin", adminRouter);
 if (enableTeamSharing) {
   app.route("/teams", teamsRouter);
 }

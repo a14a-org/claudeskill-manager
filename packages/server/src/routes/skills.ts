@@ -12,6 +12,10 @@ import {
   createSkillVersion,
   findSkillVersion,
   listSkillVersions,
+  createPublicSkill,
+  listUserPublicSkills,
+  deletePublicSkill,
+  countUserPendingPublicSkills,
 } from "../db/index.js";
 import { authMiddleware, getUser } from "../middleware.js";
 
@@ -19,6 +23,49 @@ export const skillsRouter = new Hono();
 
 // All skill routes require authentication
 skillsRouter.use("*", authMiddleware);
+
+/**
+ * List user's public skills (including pending/rejected)
+ * GET /skills/public
+ *
+ * NOTE: This route MUST be registered before /:skillKey to avoid
+ * "public" being matched as a skillKey parameter.
+ */
+skillsRouter.get("/public", async (c) => {
+  const user = getUser(c);
+  const publicSkillsList = await listUserPublicSkills(user.sub);
+
+  return c.json({
+    skills: publicSkillsList.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      status: s.status,
+      downloadCount: s.downloadCount,
+      submittedAt: s.submittedAt,
+      publishedAt: s.publishedAt,
+      rejectionReason: s.rejectionReason,
+    })),
+  });
+});
+
+/**
+ * Unpublish (delete) a public skill
+ * DELETE /skills/public/:id
+ *
+ * NOTE: This route MUST be registered before /:skillKey to avoid conflicts.
+ */
+skillsRouter.delete("/public/:id", async (c) => {
+  const user = getUser(c);
+  const id = c.req.param("id");
+
+  const deleted = await deletePublicSkill(id, user.sub);
+  if (!deleted) {
+    return c.json({ error: "Public skill not found" }, 404);
+  }
+
+  return c.json({ success: true });
+});
 
 /**
  * List all skills for the user
@@ -204,3 +251,98 @@ skillsRouter.delete("/:skillKey", async (c) => {
 
   return c.json({ success: true });
 });
+
+/**
+ * Publish a skill to the public directory
+ * POST /skills/:skillKey/publish
+ *
+ * Note: The client must decrypt the skill content before sending,
+ * as public skills are stored unencrypted.
+ */
+skillsRouter.post("/:skillKey/publish", async (c) => {
+  const user = getUser(c);
+  const skillKey = c.req.param("skillKey");
+
+  const body = await c.req.json<{
+    name: string;
+    content: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+    files?: Record<string, string>;
+  }>();
+
+  if (!body.name || !body.content) {
+    return c.json({ error: "Name and content are required" }, 400);
+  }
+
+  // Check content size limit (500KB)
+  const MAX_CONTENT_SIZE = 500 * 1024;
+  const contentSize = new TextEncoder().encode(body.content).byteLength;
+  const filesSize = body.files
+    ? new TextEncoder().encode(JSON.stringify(body.files)).byteLength
+    : 0;
+  if (contentSize + filesSize > MAX_CONTENT_SIZE) {
+    return c.json(
+      { error: "Content exceeds maximum size of 500KB" },
+      400
+    );
+  }
+
+  // Rate limit: max 10 pending submissions per user
+  const pendingCount = await countUserPendingPublicSkills(user.sub);
+  if (pendingCount >= 10) {
+    return c.json(
+      { error: "Too many pending submissions. Please wait for existing submissions to be reviewed." },
+      429
+    );
+  }
+
+  // Find the original skill (optional - we just need the ID for reference)
+  const skill = await findSkillByKey(user.sub, skillKey);
+
+  // Generate a slug from the name
+  const slug = body.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  // Check for slug uniqueness by trying different suffixes
+  let finalSlug = slug;
+  let suffix = 0;
+  while (true) {
+    try {
+      const publicSkill = await createPublicSkill(
+        user.sub,
+        skill?.id ?? null,
+        finalSlug,
+        body.name,
+        body.content,
+        body.description,
+        body.category,
+        body.tags,
+        body.files
+      );
+
+      return c.json({
+        id: publicSkill.id,
+        slug: publicSkill.slug,
+        status: publicSkill.status,
+        message: "Skill submitted for review",
+      });
+    } catch (err) {
+      // If slug conflict, try with a suffix
+      if (
+        err instanceof Error &&
+        err.message.includes("unique constraint") &&
+        suffix < 10
+      ) {
+        suffix++;
+        finalSlug = `${slug}-${suffix}`;
+        continue;
+      }
+      throw err;
+    }
+  }
+});
+

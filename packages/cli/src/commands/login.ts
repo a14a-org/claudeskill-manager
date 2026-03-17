@@ -172,7 +172,7 @@ export const runLogin = async () => {
     const masterKeyResult = await api.setMasterKey(toBase64(encryptedMasterKeyFull));
     if (!masterKeyResult.ok) {
       // Non-fatal - dashboard decryption won't work but CLI will
-      p.log.warn("Could not sync master key for web dashboard");
+      p.log.warning("Could not sync master key for web dashboard");
     }
 
     spinner.stop("Encryption configured!");
