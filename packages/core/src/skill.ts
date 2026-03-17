@@ -232,6 +232,7 @@ export const listSkills = async (
     const skillPromises = entries
       .filter((entry) => {
         if (!entry.isFile()) return false;
+        if (entry.name.startsWith(".")) return false;
         const ext = extname(entry.name).toLowerCase();
         return ext === ".md" || ext === ".txt" || ext === "";
       })
