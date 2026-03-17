@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   index,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // =============================================================================
@@ -152,6 +153,58 @@ export const skillVersions = pgTable(
 
 export type SkillVersion = typeof skillVersions.$inferSelect;
 export type NewSkillVersion = typeof skillVersions.$inferInsert;
+
+// =============================================================================
+// Public Skills Table (unencrypted, for sharing)
+// =============================================================================
+
+export type PublicSkillStatus = "pending" | "approved" | "rejected";
+
+export const publicSkills = pgTable(
+  "public_skills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Reference to the original encrypted skill (nullable - skill can be deleted)
+    skillId: uuid("skill_id").references(() => skills.id, { onDelete: "set null" }),
+    // Owner of the skill
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    // Public metadata (searchable)
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description"),
+    category: text("category"),
+    tags: text("tags").array(),
+
+    // UNENCRYPTED content (this is what makes it public)
+    content: text("content").notNull(),
+    files: jsonb("files").$type<Record<string, string>>(),
+
+    // Review workflow
+    status: text("status").$type<PublicSkillStatus>().notNull().default("pending"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at"),
+    rejectionReason: text("rejection_reason"),
+
+    // Stats
+    downloadCount: integer("download_count").notNull().default(0),
+
+    // Timestamps
+    submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+    publishedAt: timestamp("published_at"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_public_skills_user_id").on(table.userId),
+    index("idx_public_skills_status").on(table.status),
+    index("idx_public_skills_category").on(table.category),
+  ]
+);
+
+export type PublicSkill = typeof publicSkills.$inferSelect;
+export type NewPublicSkill = typeof publicSkills.$inferInsert;
 
 // =============================================================================
 // Teams Table
@@ -341,6 +394,7 @@ export type SessionRecord = Session;
 export type BlobRecord = Blob;
 export type SkillRecord = Skill;
 export type SkillVersionRecord = SkillVersion;
+export type PublicSkillRecord = PublicSkill;
 export type TeamRecord = Team;
 export type TeamMemberRecord = TeamMember;
 export type TeamInviteRecord = TeamInvite;
