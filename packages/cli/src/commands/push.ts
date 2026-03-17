@@ -184,7 +184,7 @@ export const runPush = async (options: PushOptions = {}) => {
         }
       }
     }
-  } catch {
-    // Silently skip key distribution if it fails
+  } catch (error) {
+    p.log.warning("Team key distribution skipped: " + (error instanceof Error ? error.message : "unknown error"));
   }
 };

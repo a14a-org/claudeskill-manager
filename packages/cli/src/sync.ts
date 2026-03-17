@@ -80,7 +80,7 @@ const hashContent = (content: string) => {
   const hash = Array.from(content).reduce((hash, char) => {
     const code = char.charCodeAt(0);
     const newHash = (hash << 5) - hash + code;
-    return newHash & newHash; // Convert to 32-bit integer
+    return newHash | 0; // Convert to 32-bit integer
   }, 0);
   return hash.toString(16);
 };
