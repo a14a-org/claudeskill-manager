@@ -10,12 +10,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - DATABASE_PATH=/app/data/skills.db
+      - ENABLE_TEAM_SHARING=${ENABLE_TEAM_SHARING:-false}
+      - DATABASE_URL=${DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - FROM_EMAIL=${FROM_EMAIL:-noreply@claudeskill.io}
-    volumes:
-      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
@@ -23,6 +22,3 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
-
-volumes:
-  data:

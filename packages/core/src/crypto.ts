@@ -6,9 +6,17 @@
  * 2. Derived key (Argon2id from passphrase + salt)
  * 3. Master key (random 256-bit, encrypted with derived key)
  * 4. Skill data (encrypted with master key)
+ *
+ * Team key hierarchy:
+ * 1. Team master key (random 256-bit, generated when team is created)
+ * 2. Team key is encrypted with each member's public key (X25519 + AES-256-GCM)
+ * 3. Team skill data is encrypted with team master key
  */
 
 import { argon2id } from "@noble/hashes/argon2";
+import { x25519 } from "@noble/curves/ed25519.js";
+import { hkdf } from "@noble/hashes/hkdf";
+import { sha256 } from "@noble/hashes/sha256";
 import {
   randomBytes,
   createCipheriv,
@@ -288,6 +296,14 @@ export const fromBase64 = (base64: string): Uint8Array => {
 };
 
 /**
+ * Compute a stable, human-readable fingerprint for a public key.
+ */
+export const computeKeyFingerprint = (publicKey: Uint8Array): string => {
+  const digest = createHash("sha256").update(publicKey).digest("hex").slice(0, 32);
+  return digest.match(/.{1,4}/g)?.join("-") ?? digest;
+};
+
+/**
  * Compute SHA-256 hash of content, return short hash (8 chars like git)
  */
 export const computeContentHash = (content: string): string => {
@@ -299,4 +315,154 @@ export const computeContentHash = (content: string): string => {
  */
 export const computeFullHash = (content: string): string => {
   return createHash("sha256").update(content, "utf8").digest("hex");
+};
+
+// =============================================================================
+// X25519 Key Exchange (for team key sharing)
+// =============================================================================
+
+/** X25519 key pair */
+export type X25519KeyPair = {
+  /** Public key (32 bytes) */
+  publicKey: Uint8Array;
+  /** Private key (32 bytes) */
+  privateKey: Uint8Array;
+};
+
+/**
+ * Generate an X25519 key pair for asymmetric encryption
+ * Used for encrypting team keys for individual members
+ */
+export const generateX25519KeyPair = (): X25519KeyPair => {
+  const privateKey = generateRandomBytes(32);
+  const publicKey = x25519.getPublicKey(privateKey);
+  return { publicKey, privateKey };
+};
+
+/**
+ * Derive a shared secret using X25519 ECDH
+ * The shared secret is then used to derive an AES key via HKDF
+ */
+const deriveSharedKey = (
+  privateKey: Uint8Array,
+  publicKey: Uint8Array,
+  context: string = "team-key-exchange"
+): Uint8Array => {
+  // X25519 ECDH to get shared secret
+  const sharedSecret = x25519.getSharedSecret(privateKey, publicKey);
+
+  // Use HKDF to derive a proper AES key from the shared secret
+  const derivedKey = hkdf(sha256, sharedSecret, undefined, context, AES_KEY_LENGTH);
+
+  return derivedKey;
+};
+
+/**
+ * Encrypt data for a specific recipient using their public key
+ * Uses X25519 ECDH + HKDF + AES-256-GCM (ECIES-like construction)
+ *
+ * @param plaintext - Data to encrypt
+ * @param recipientPublicKey - Recipient's X25519 public key
+ * @returns Encrypted data with ephemeral public key, IV, and auth tag
+ */
+export const encryptForRecipient = (
+  plaintext: Uint8Array,
+  recipientPublicKey: Uint8Array
+): {
+  ephemeralPublicKey: Uint8Array;
+  ciphertext: Uint8Array;
+  iv: Uint8Array;
+  tag: Uint8Array;
+} => {
+  // Generate ephemeral keypair for this encryption
+  const ephemeral = generateX25519KeyPair();
+
+  // Derive shared AES key
+  const sharedKey = deriveSharedKey(ephemeral.privateKey, recipientPublicKey);
+
+  // Encrypt with AES-256-GCM
+  const { ciphertext, iv, tag } = encrypt(plaintext, sharedKey);
+
+  return {
+    ephemeralPublicKey: ephemeral.publicKey,
+    ciphertext,
+    iv,
+    tag,
+  };
+};
+
+/**
+ * Decrypt data that was encrypted for us using our private key
+ *
+ * @param ephemeralPublicKey - Sender's ephemeral public key
+ * @param ciphertext - Encrypted data
+ * @param iv - Initialization vector
+ * @param tag - Authentication tag
+ * @param recipientPrivateKey - Our X25519 private key
+ * @returns Decrypted plaintext
+ */
+export const decryptAsRecipient = (
+  ephemeralPublicKey: Uint8Array,
+  ciphertext: Uint8Array,
+  iv: Uint8Array,
+  tag: Uint8Array,
+  recipientPrivateKey: Uint8Array
+): Uint8Array => {
+  // Derive shared AES key (same as sender derived)
+  const sharedKey = deriveSharedKey(recipientPrivateKey, ephemeralPublicKey);
+
+  // Decrypt with AES-256-GCM
+  return decrypt(ciphertext, sharedKey, iv, tag);
+};
+
+/**
+ * Encrypt a team key for a specific member
+ * Returns base64-encoded components for storage/transmission
+ */
+export const encryptTeamKeyForMember = (
+  teamKey: Uint8Array,
+  memberPublicKey: Uint8Array
+): {
+  ephemeralPublicKey: string;
+  encryptedKey: string;
+  iv: string;
+  tag: string;
+} => {
+  const { ephemeralPublicKey, ciphertext, iv, tag } = encryptForRecipient(
+    teamKey,
+    memberPublicKey
+  );
+
+  return {
+    ephemeralPublicKey: toBase64(ephemeralPublicKey),
+    encryptedKey: toBase64(ciphertext),
+    iv: toBase64(iv),
+    tag: toBase64(tag),
+  };
+};
+
+/**
+ * Decrypt a team key that was encrypted for us
+ */
+export const decryptTeamKeyAsMember = (
+  ephemeralPublicKey: string,
+  encryptedKey: string,
+  iv: string,
+  tag: string,
+  memberPrivateKey: Uint8Array
+): Uint8Array => {
+  return decryptAsRecipient(
+    fromBase64(ephemeralPublicKey),
+    fromBase64(encryptedKey),
+    fromBase64(iv),
+    fromBase64(tag),
+    memberPrivateKey
+  );
+};
+
+/**
+ * Generate a new team master key
+ */
+export const generateTeamKey = (): Uint8Array => {
+  return generateRandomBytes(AES_KEY_LENGTH);
 };

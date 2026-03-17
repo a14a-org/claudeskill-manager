@@ -10,36 +10,54 @@ export type {
   Credentials,
   DerivedKey,
   EncryptedBlob,
+  EncryptedTeamKey,
   RecoveryKey,
   Skill,
   SkillMetadata,
   SkillType,
   SyncedSkill,
   SyncStatus,
+  Team,
+  TeamCredentials,
+  TeamInvite,
+  TeamMember,
+  TeamMemberStatus,
+  TeamRole,
+  TeamWithMembership,
   Vault,
 } from "./types.js";
 
 // Crypto operations
 export {
   computeContentHash,
+  computeKeyFingerprint,
   computeFullHash,
   decrypt,
+  decryptAsRecipient,
   decryptMasterKey,
   decryptString,
+  decryptTeamKeyAsMember,
   deriveKeyFromPassphrase,
   deriveKeyFromRecoveryKey,
   encrypt,
+  encryptForRecipient,
   encryptMasterKey,
   encryptString,
+  encryptTeamKeyForMember,
   formatRecoveryKey,
   fromBase64,
   generateMasterKey,
   generateRandomBytes,
   generateRecoveryKey,
   generateSalt,
+  generateTeamKey,
+  generateX25519KeyPair,
   parseRecoveryKey,
   toBase64,
 } from "./crypto.js";
+
+// Re-export X25519 types
+export type { X25519KeyPair } from "./crypto.js";
 
 // Skill operations
 export {
