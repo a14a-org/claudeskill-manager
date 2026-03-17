@@ -16,8 +16,14 @@ import {
   getKeypair,
   setKeypair,
   getMyTeamKey,
+  listTeamMembers,
+  removeTeamMember,
+  getTeamSkillVersions,
+  getTeamSkillVersion,
 } from "../api.js";
 import { loadCredentials, saveCredentials } from "../credentials.js";
+import { decryptSkill } from "../sync.js";
+import { pushTeamSkills, pullTeamSkills, writeTeamSkill } from "../team.js";
 import {
   computeKeyFingerprint,
   generateX25519KeyPair,
@@ -157,7 +163,7 @@ export const runTeamList = async (): Promise<void> => {
 
   if (result.data.teams.length === 0) {
     p.log.info("You are not a member of any teams.");
-    p.log.info("Create a team with: claude-skill-sync team create <name>");
+    p.log.info("Create a team with: claudeskill team create <name>");
     return;
   }
 
@@ -188,7 +194,7 @@ export const runTeamCreate = async (
   spinner.stop("Team created");
   p.log.success(`Team "${name}" created successfully!`);
   p.log.info(`Team ID: ${created.teamId}`);
-  p.log.info("You can now invite members with: claude-skill-sync team invite <team-id> <email>");
+  p.log.info("You can now invite members with: claudeskill team invite <team-id> <email>");
 };
 
 /**
@@ -261,7 +267,7 @@ export const runTeamInvite = async (
   console.log(`\n  ${result.data.token}\n`);
   p.log.info(`Expires: ${new Date(result.data.expiresAt).toLocaleString()}`);
   p.log.info(
-    "They can accept with: claude-skill-sync team accept <token>"
+    "They can accept with: claudeskill team accept <token>"
   );
 };
 
@@ -484,6 +490,279 @@ export const createTeamWithKey = async (
   }
 
   return { teamId: createResult.data.id, teamKey };
+};
+
+/**
+ * Push team skills to server
+ */
+export const runTeamPush = async (
+  teamId: string,
+  masterKey: Uint8Array,
+  skillFilter?: string,
+  message?: string
+): Promise<void> => {
+  const keypair = await ensureKeypair(masterKey);
+  const teamKey = await getTeamKeyForTeam(teamId, masterKey, keypair);
+  if (!teamKey) {
+    p.log.error("Could not decrypt team key. You may not have access to this team.");
+    return;
+  }
+
+  // Get team key version from API
+  const teamResult = await getTeam(teamId);
+  if (!teamResult.ok) {
+    p.log.error(`Failed to get team info: ${teamResult.error}`);
+    return;
+  }
+
+  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const spinner = p.spinner();
+  spinner.start("Pushing team skills...");
+
+  const result = await pushTeamSkills({
+    teamId,
+    teamSlug,
+    teamKey,
+    teamKeyVersion: teamResult.data.activeKeyVersion ?? 1,
+    skillFilter,
+    message,
+    onProgress: (msg) => spinner.message(msg),
+  });
+
+  spinner.stop("Push complete");
+
+  if (result.pushed > 0) {
+    p.log.success(`Pushed ${result.pushed} team skill(s)`);
+  } else {
+    p.log.info("No changes to push");
+  }
+  for (const error of result.errors) {
+    p.log.error(error);
+  }
+};
+
+/**
+ * Pull team skills from server
+ */
+export const runTeamPull = async (
+  teamId: string,
+  masterKey: Uint8Array
+): Promise<void> => {
+  const keypair = await ensureKeypair(masterKey);
+  const teamKey = await getTeamKeyForTeam(teamId, masterKey, keypair);
+  if (!teamKey) {
+    p.log.error("Could not decrypt team key. You may not have access to this team.");
+    return;
+  }
+
+  const teamResult = await getTeam(teamId);
+  if (!teamResult.ok) {
+    p.log.error(`Failed to get team info: ${teamResult.error}`);
+    return;
+  }
+
+  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const spinner = p.spinner();
+  spinner.start("Pulling team skills...");
+
+  const result = await pullTeamSkills({
+    teamId,
+    teamSlug,
+    teamKey,
+    onProgress: (msg) => spinner.message(msg),
+  });
+
+  spinner.stop("Pull complete");
+
+  if (result.pulled > 0) {
+    p.log.success(`Pulled ${result.pulled} team skill(s)`);
+  } else {
+    p.log.info("No new team skills to pull");
+  }
+  for (const error of result.errors) {
+    p.log.error(error);
+  }
+};
+
+/**
+ * Show team skill version history
+ */
+export const runTeamLog = async (
+  teamId: string,
+  skillKey: string
+): Promise<void> => {
+  const spinner = p.spinner();
+  spinner.start("Loading history...");
+
+  const result = await getTeamSkillVersions(teamId, skillKey);
+  if (!result.ok) {
+    spinner.stop("Failed");
+    p.log.error(result.error);
+    return;
+  }
+
+  spinner.stop("Loaded");
+
+  console.log(`\nVersion history for ${skillKey}`);
+  console.log("═".repeat(50));
+  for (const version of result.data.versions) {
+    const head = version.hash === result.data.currentHash ? " (HEAD)" : "";
+    console.log(`${version.hash}${head}`);
+    console.log(`  Key version: ${version.teamKeyVersion}`);
+    console.log(`  Date: ${new Date(version.createdAt).toLocaleString()}`);
+    if (version.message) {
+      console.log(`  Message: ${version.message}`);
+    }
+    if (version.parentHash) {
+      console.log(`  Parent: ${version.parentHash}`);
+    }
+    console.log("");
+  }
+};
+
+/**
+ * Restore a specific team skill version
+ */
+export const runTeamCheckout = async (
+  teamId: string,
+  skillKey: string,
+  hash: string,
+  masterKey: Uint8Array
+): Promise<void> => {
+  const keypair = await ensureKeypair(masterKey);
+  const teamKey = await getTeamKeyForTeam(teamId, masterKey, keypair);
+  if (!teamKey) {
+    p.log.error("Could not decrypt team key. You may not have access to this team.");
+    return;
+  }
+
+  const teamResult = await getTeam(teamId);
+  if (!teamResult.ok) {
+    p.log.error(`Failed to get team info: ${teamResult.error}`);
+    return;
+  }
+
+  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const spinner = p.spinner();
+  spinner.start("Fetching version...");
+
+  const result = await getTeamSkillVersion(teamId, skillKey, hash);
+  if (!result.ok) {
+    spinner.stop("Failed");
+    p.log.error(result.error);
+    return;
+  }
+
+  const decrypted = decryptSkill(
+    result.data.encryptedData,
+    result.data.iv,
+    result.data.tag,
+    teamKey
+  );
+  await writeTeamSkill(teamSlug, decrypted);
+
+  spinner.stop("Checked out");
+  p.log.success(`Restored ${skillKey} @ ${hash}`);
+};
+
+/**
+ * List team members with roles
+ */
+export const runTeamMembers = async (teamId: string): Promise<void> => {
+  const spinner = p.spinner();
+  spinner.start("Loading members...");
+
+  const result = await listTeamMembers(teamId);
+  if (!result.ok) {
+    spinner.stop("Failed");
+    p.log.error(result.error);
+    return;
+  }
+
+  spinner.stop("Members loaded");
+
+  console.log("\nTeam members:\n");
+  for (const member of result.data.members) {
+    const status = member.status === "pending" ? " (pending)" : "";
+    const keyStatus = member.hasTeamKey ? "" : " [no key]";
+    const fingerprint = member.publicKeyFingerprint
+      ? `  fingerprint: ${member.publicKeyFingerprint}`
+      : "";
+    console.log(`  ${member.email} [${member.role}]${status}${keyStatus}${fingerprint}`);
+  }
+  console.log("");
+};
+
+/**
+ * Remove a team member and rotate the team key
+ */
+export const runTeamRemoveMember = async (
+  teamId: string,
+  email: string,
+  masterKey: Uint8Array
+): Promise<void> => {
+  const spinner = p.spinner();
+  spinner.start("Loading team members...");
+
+  const membersResult = await listTeamMembers(teamId);
+  if (!membersResult.ok) {
+    spinner.stop("Failed");
+    p.log.error(membersResult.error);
+    return;
+  }
+
+  const target = membersResult.data.members.find(
+    (m) => m.email.toLowerCase() === email.toLowerCase() && m.status === "active"
+  );
+  if (!target) {
+    spinner.stop("Not found");
+    p.log.error(`Active member not found: ${email}`);
+    return;
+  }
+
+  spinner.message("Rotating team key...");
+
+  // Get current team key version
+  const teamResult = await getTeam(teamId);
+  if (!teamResult.ok) {
+    spinner.stop("Failed");
+    p.log.error(teamResult.error);
+    return;
+  }
+
+  const nextKeyVersion = (teamResult.data.activeKeyVersion ?? 1) + 1;
+
+  // Generate new team key
+  const newTeamKey = generateTeamKey();
+
+  // Encrypt new key for all remaining active members (except the removed one)
+  const envelopes = membersResult.data.members
+    .filter(
+      (m) =>
+        m.status === "active" &&
+        m.userId !== target.userId &&
+        m.publicKey
+    )
+    .map((m) => {
+      const encrypted = encryptTeamKeyForMember(newTeamKey, fromBase64(m.publicKey!));
+      return {
+        recipientUserId: m.userId,
+        encryptedTeamKey: encrypted.encryptedKey,
+        iv: encrypted.iv,
+        tag: encrypted.tag,
+        ephemeralPublicKey: encrypted.ephemeralPublicKey,
+      };
+    });
+
+  const result = await removeTeamMember(teamId, target.userId, nextKeyVersion, envelopes);
+  if (!result.ok) {
+    spinner.stop("Failed");
+    p.log.error(result.error);
+    return;
+  }
+
+  spinner.stop("Removed");
+  p.log.success(`Removed ${email} and rotated team key to version ${nextKeyVersion}`);
 };
 
 export { ensureKeypair };

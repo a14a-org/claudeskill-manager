@@ -12,6 +12,7 @@ import {
 import { loadConfig } from "../config.js";
 import { loadCredentials } from "../credentials.js";
 import { getMasterKey, pushSkills, loadSyncIndex } from "../sync.js";
+import { ensureKeypair, getTeamKeyForTeam, runDistributeKeys } from "./team.js";
 import * as api from "../api.js";
 
 export type PushOptions = Partial<{
@@ -26,18 +27,18 @@ export const runPush = async (options: PushOptions = {}) => {
   const config = await loadConfig();
 
   if (!config) {
-    p.log.error("Not configured. Run 'claude-skill-sync' first to set up.");
+    p.log.error("Not configured. Run 'claudeskill' first to set up.");
     return;
   }
 
   if (config.mode === "local") {
-    p.log.error("Cannot push in local-only mode. Change mode with 'claude-skill-sync config'.");
+    p.log.error("Cannot push in local-only mode. Change mode with 'claudeskill config'.");
     return;
   }
 
   const credentials = await loadCredentials();
   if (!credentials?.accessToken) {
-    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    p.log.error("Not logged in. Run 'claudeskill login' first.");
     return;
   }
 
@@ -162,5 +163,28 @@ export const runPush = async (options: PushOptions = {}) => {
     errors.forEach((error) => {
       p.log.error(`  ${error}`);
     });
+  }
+
+  // Auto-distribute team keys to pending members
+  try {
+    const keypair = await ensureKeypair(masterKey);
+    const teamsResult = await api.listTeams();
+    if (teamsResult.ok) {
+      const managedTeams = teamsResult.data.teams.filter(
+        (t) => (t.role === "owner" || t.role === "admin") && t.status === "active"
+      );
+      if (managedTeams.length > 0) {
+        const teamKeys = new Map<string, Uint8Array>();
+        for (const team of managedTeams) {
+          const key = await getTeamKeyForTeam(team.id, masterKey, keypair);
+          if (key) teamKeys.set(team.id, key);
+        }
+        if (teamKeys.size > 0) {
+          await runDistributeKeys(masterKey, teamKeys);
+        }
+      }
+    }
+  } catch {
+    // Silently skip key distribution if it fails
   }
 };

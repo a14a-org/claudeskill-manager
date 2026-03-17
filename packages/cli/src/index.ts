@@ -24,6 +24,12 @@ import {
   runTeamShow,
   runTeamInvite,
   runTeamAccept,
+  runTeamPush,
+  runTeamPull,
+  runTeamLog,
+  runTeamCheckout,
+  runTeamMembers,
+  runTeamRemoveMember,
 } from "./commands/team.js";
 import { loadConfig } from "./config.js";
 import { loadCredentials } from "./credentials.js";
@@ -33,11 +39,11 @@ const VERSION = "0.1.0";
 
 const showHelp = (): void => {
   console.log(`
-claude-skill-sync v${VERSION}
+claudeskill v${VERSION}
 Sync your Claude Code skills across devices
 
 Usage:
-  claude-skill-sync [command] [options]
+  claudeskill [command] [options]
 
 Commands:
   (no command)     Interactive setup or status
@@ -57,8 +63,14 @@ Team Commands:
   team list                        List your teams
   team create <name>               Create a new team
   team show <team-id>              Show team details
+  team members <team-id>           List team members
   team invite <team-id> <email> [role]  Invite member (role: admin|editor|viewer)
   team accept <token>              Accept team invite
+  team push <team-id> [skill]      Push team skills to server
+  team pull <team-id>              Pull team skills from server
+  team log <team-id> <skill>       Show team skill version history
+  team checkout <team-id> <skill> <hash>  Restore team skill version
+  team remove-member <team-id> <email>    Remove member and rotate key
 
 List Options:
   --tree           Show dependency tree
@@ -72,12 +84,12 @@ Options:
   --help, -h       Show help
 
 Examples:
-  $ claude-skill-sync              # First run: setup, otherwise: status
-  $ claude-skill-sync list         # List all skills
-  $ claude-skill-sync list --tree  # Show dependency graph
-  $ claude-skill-sync push         # Push local changes
-  $ claude-skill-sync team create "My Team"  # Create a team
-  $ claude-skill-sync team invite abc123 bob@example.com editor
+  $ claudeskill              # First run: setup, otherwise: status
+  $ claudeskill list         # List all skills
+  $ claudeskill list --tree  # Show dependency graph
+  $ claudeskill push         # Push local changes
+  $ claudeskill team create "My Team"  # Create a team
+  $ claudeskill team invite abc123 bob@example.com editor
 
 Learn more: https://claudeskill.io
 `);
@@ -86,7 +98,7 @@ Learn more: https://claudeskill.io
 const promptForMasterKey = async (): Promise<Uint8Array | null> => {
   const credentials = await loadCredentials();
   if (!credentials?.salt || !credentials.encryptedMasterKey) {
-    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    p.log.error("Not logged in. Run 'claudeskill login' first.");
     return null;
   }
 
@@ -165,8 +177,8 @@ const main = async (): Promise<void> => {
     case "log": {
       const skillKey = args[1];
       if (!skillKey) {
-        p.log.error("Usage: claude-skill-sync log <skill-key>");
-        p.log.info("Example: claude-skill-sync log skill:setup-eslint");
+        p.log.error("Usage: claudeskill log <skill-key>");
+        p.log.info("Example: claudeskill log skill:setup-eslint");
         return;
       }
       await runLog(skillKey);
@@ -177,8 +189,8 @@ const main = async (): Promise<void> => {
       const skillKey = args[1];
       const hash = args[2];
       if (!skillKey || !hash) {
-        p.log.error("Usage: claude-skill-sync checkout <skill-key> <hash>");
-        p.log.info("Example: claude-skill-sync checkout skill:setup-eslint abc123");
+        p.log.error("Usage: claudeskill checkout <skill-key> <hash>");
+        p.log.info("Example: claudeskill checkout skill:setup-eslint abc123");
         return;
       }
       await runCheckout(skillKey, hash);
@@ -190,8 +202,8 @@ const main = async (): Promise<void> => {
       const hash1 = args[2];
       const hash2 = args[3];
       if (!skillKey || !hash1 || !hash2) {
-        p.log.error("Usage: claude-skill-sync diff <skill-key> <hash1> <hash2>");
-        p.log.info("Example: claude-skill-sync diff skill:setup-eslint abc123 def456");
+        p.log.error("Usage: claudeskill diff <skill-key> <hash1> <hash2>");
+        p.log.info("Example: claudeskill diff skill:setup-eslint abc123 def456");
         return;
       }
       await runDiff(skillKey, hash1, hash2);
@@ -210,7 +222,7 @@ const main = async (): Promise<void> => {
       if (config) {
         console.log(JSON.stringify(config, null, 2));
       } else {
-        p.log.warning("Not configured. Run 'claude-skill-sync' to set up.");
+        p.log.warning("Not configured. Run 'claudeskill' to set up.");
       }
       break;
 
@@ -225,7 +237,7 @@ const main = async (): Promise<void> => {
         case "create": {
           const name = args[2];
           if (!name) {
-            p.log.error("Usage: claude-skill-sync team create <name>");
+            p.log.error("Usage: claudeskill team create <name>");
             return;
           }
           const masterKey = await promptForMasterKey();
@@ -239,7 +251,7 @@ const main = async (): Promise<void> => {
         case "show": {
           const teamId = args[2];
           if (!teamId) {
-            p.log.error("Usage: claude-skill-sync team show <team-id>");
+            p.log.error("Usage: claudeskill team show <team-id>");
             return;
           }
           await runTeamShow(teamId);
@@ -251,7 +263,7 @@ const main = async (): Promise<void> => {
           const email = args[3];
           const role = args[4] ?? "editor";
           if (!teamId || !email) {
-            p.log.error("Usage: claude-skill-sync team invite <team-id> <email> [role]");
+            p.log.error("Usage: claudeskill team invite <team-id> <email> [role]");
             return;
           }
           await runTeamInvite(teamId, email, role);
@@ -261,7 +273,7 @@ const main = async (): Promise<void> => {
         case "accept": {
           const token = args[2];
           if (!token) {
-            p.log.error("Usage: claude-skill-sync team accept <token>");
+            p.log.error("Usage: claudeskill team accept <token>");
             return;
           }
           const masterKey = await promptForMasterKey();
@@ -272,14 +284,96 @@ const main = async (): Promise<void> => {
           break;
         }
 
+        case "push": {
+          const teamId = args[2];
+          if (!teamId) {
+            p.log.error("Usage: claudeskill team push <team-id> [skill]");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) return;
+          const flags = args.slice(3);
+          const messageIdx = flags.indexOf("-m");
+          const message = messageIdx >= 0 ? flags[messageIdx + 1] : undefined;
+          const skillFilter = flags[0] && flags[0] !== "-m" ? flags[0] : undefined;
+          await runTeamPush(teamId, masterKey, skillFilter, message);
+          break;
+        }
+
+        case "pull": {
+          const teamId = args[2];
+          if (!teamId) {
+            p.log.error("Usage: claudeskill team pull <team-id>");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) return;
+          await runTeamPull(teamId, masterKey);
+          break;
+        }
+
+        case "log": {
+          const teamId = args[2];
+          const skillKey = args[3];
+          if (!teamId || !skillKey) {
+            p.log.error("Usage: claudeskill team log <team-id> <skill-key>");
+            return;
+          }
+          await runTeamLog(teamId, skillKey);
+          break;
+        }
+
+        case "checkout": {
+          const teamId = args[2];
+          const skillKey = args[3];
+          const hash = args[4];
+          if (!teamId || !skillKey || !hash) {
+            p.log.error("Usage: claudeskill team checkout <team-id> <skill-key> <hash>");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) return;
+          await runTeamCheckout(teamId, skillKey, hash, masterKey);
+          break;
+        }
+
+        case "members": {
+          const teamId = args[2];
+          if (!teamId) {
+            p.log.error("Usage: claudeskill team members <team-id>");
+            return;
+          }
+          await runTeamMembers(teamId);
+          break;
+        }
+
+        case "remove-member": {
+          const teamId = args[2];
+          const email = args[3];
+          if (!teamId || !email) {
+            p.log.error("Usage: claudeskill team remove-member <team-id> <email>");
+            return;
+          }
+          const masterKey = await promptForMasterKey();
+          if (!masterKey) return;
+          await runTeamRemoveMember(teamId, email, masterKey);
+          break;
+        }
+
         default:
           p.log.error(`Unknown team command: ${subCommand}`);
           console.log("\nTeam Commands:");
-          console.log("  team list                        List your teams");
-          console.log("  team create <name>               Create a new team");
-          console.log("  team show <team-id>              Show team details");
+          console.log("  team list                          List your teams");
+          console.log("  team create <name>                 Create a new team");
+          console.log("  team show <team-id>                Show team details");
+          console.log("  team members <team-id>             List team members");
           console.log("  team invite <team-id> <email> [role]  Invite member");
-          console.log("  team accept <token>              Accept team invite");
+          console.log("  team accept <token>                Accept team invite");
+          console.log("  team push <team-id> [skill]        Push team skills");
+          console.log("  team pull <team-id>                Pull team skills");
+          console.log("  team log <team-id> <skill>         Show version history");
+          console.log("  team checkout <team-id> <skill> <hash>  Restore version");
+          console.log("  team remove-member <team-id> <email>    Remove member");
           break;
       }
       break;

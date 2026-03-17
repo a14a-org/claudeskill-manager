@@ -510,6 +510,7 @@ export type TeamMemberItem = {
   role: string;
   status: string;
   hasTeamKey: boolean;
+  publicKey?: string | null;
   publicKeyFingerprint?: string | null;
   createdAt: string;
 };
@@ -840,6 +841,16 @@ export const pushTeamSkillVersion = async (
     method: "POST",
     body: JSON.stringify({ hash, encryptedData, iv, tag, teamKeyVersion, message }),
   });
+};
+
+export const getTeamSkillVersion = async (
+  teamId: string,
+  skillKey: string,
+  hash: string
+): Promise<ApiResponse<TeamSkillResponse>> => {
+  return apiRequest(
+    `/teams/${teamId}/skills/${encodeURIComponent(skillKey)}/versions/${encodeURIComponent(hash)}`
+  );
 };
 
 export const deleteTeamSkill = async (
