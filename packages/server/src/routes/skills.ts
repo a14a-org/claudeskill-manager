@@ -15,6 +15,7 @@ import {
   createPublicSkill,
   listUserPublicSkills,
   deletePublicSkill,
+  countUserPendingPublicSkills,
 } from "../db/index.js";
 import { authMiddleware, getUser } from "../middleware.js";
 
@@ -22,6 +23,49 @@ export const skillsRouter = new Hono();
 
 // All skill routes require authentication
 skillsRouter.use("*", authMiddleware);
+
+/**
+ * List user's public skills (including pending/rejected)
+ * GET /skills/public
+ *
+ * NOTE: This route MUST be registered before /:skillKey to avoid
+ * "public" being matched as a skillKey parameter.
+ */
+skillsRouter.get("/public", async (c) => {
+  const user = getUser(c);
+  const publicSkillsList = await listUserPublicSkills(user.sub);
+
+  return c.json({
+    skills: publicSkillsList.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      status: s.status,
+      downloadCount: s.downloadCount,
+      submittedAt: s.submittedAt,
+      publishedAt: s.publishedAt,
+      rejectionReason: s.rejectionReason,
+    })),
+  });
+});
+
+/**
+ * Unpublish (delete) a public skill
+ * DELETE /skills/public/:id
+ *
+ * NOTE: This route MUST be registered before /:skillKey to avoid conflicts.
+ */
+skillsRouter.delete("/public/:id", async (c) => {
+  const user = getUser(c);
+  const id = c.req.param("id");
+
+  const deleted = await deletePublicSkill(id, user.sub);
+  if (!deleted) {
+    return c.json({ error: "Public skill not found" }, 404);
+  }
+
+  return c.json({ success: true });
+});
 
 /**
  * List all skills for the user
@@ -232,6 +276,28 @@ skillsRouter.post("/:skillKey/publish", async (c) => {
     return c.json({ error: "Name and content are required" }, 400);
   }
 
+  // Check content size limit (500KB)
+  const MAX_CONTENT_SIZE = 500 * 1024;
+  const contentSize = new TextEncoder().encode(body.content).byteLength;
+  const filesSize = body.files
+    ? new TextEncoder().encode(JSON.stringify(body.files)).byteLength
+    : 0;
+  if (contentSize + filesSize > MAX_CONTENT_SIZE) {
+    return c.json(
+      { error: "Content exceeds maximum size of 500KB" },
+      400
+    );
+  }
+
+  // Rate limit: max 10 pending submissions per user
+  const pendingCount = await countUserPendingPublicSkills(user.sub);
+  if (pendingCount >= 10) {
+    return c.json(
+      { error: "Too many pending submissions. Please wait for existing submissions to be reviewed." },
+      429
+    );
+  }
+
   // Find the original skill (optional - we just need the ID for reference)
   const skill = await findSkillByKey(user.sub, skillKey);
 
@@ -280,40 +346,3 @@ skillsRouter.post("/:skillKey/publish", async (c) => {
   }
 });
 
-/**
- * List user's public skills (including pending/rejected)
- * GET /skills/public
- */
-skillsRouter.get("/public", async (c) => {
-  const user = getUser(c);
-  const publicSkillsList = await listUserPublicSkills(user.sub);
-
-  return c.json({
-    skills: publicSkillsList.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      status: s.status,
-      downloadCount: s.downloadCount,
-      submittedAt: s.submittedAt,
-      publishedAt: s.publishedAt,
-      rejectionReason: s.rejectionReason,
-    })),
-  });
-});
-
-/**
- * Unpublish (delete) a public skill
- * DELETE /skills/public/:id
- */
-skillsRouter.delete("/public/:id", async (c) => {
-  const user = getUser(c);
-  const id = c.req.param("id");
-
-  const deleted = await deletePublicSkill(id, user.sub);
-  if (!deleted) {
-    return c.json({ error: "Public skill not found" }, 404);
-  }
-
-  return c.json({ success: true });
-});

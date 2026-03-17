@@ -57,9 +57,6 @@ publicSkillsRouter.get("/:slug", async (c) => {
     return c.json({ error: "Skill not found" }, 404);
   }
 
-  // Increment download count
-  await incrementPublicSkillDownloads(skill.id);
-
   return c.json({
     id: skill.id,
     slug: skill.slug,
@@ -69,8 +66,26 @@ publicSkillsRouter.get("/:slug", async (c) => {
     tags: skill.tags,
     content: skill.content,
     files: skill.files,
-    downloadCount: skill.downloadCount + 1, // Include the current download
+    downloadCount: skill.downloadCount,
     publishedAt: skill.publishedAt,
     author: skill.authorEmail.split("@")[0], // Only show username part
   });
+});
+
+/**
+ * Record a download for a public skill
+ * POST /public/skills/:slug/download
+ */
+publicSkillsRouter.post("/:slug/download", async (c) => {
+  const slug = c.req.param("slug");
+
+  const skill = await findPublicSkillBySlug(slug);
+
+  if (!skill || skill.status !== "approved") {
+    return c.json({ error: "Skill not found" }, 404);
+  }
+
+  await incrementPublicSkillDownloads(skill.id);
+
+  return c.json({ success: true, downloadCount: skill.downloadCount + 1 });
 });

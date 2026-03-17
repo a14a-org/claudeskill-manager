@@ -23,7 +23,7 @@ adminRouter.use("*", authMiddleware);
 
 // Simple admin check - in production use proper role-based access
 const isAdmin = (email: string): boolean => {
-  const adminEmails = process.env["ADMIN_EMAILS"]?.split(",") ?? [];
+  const adminEmails = process.env["ADMIN_EMAILS"]?.split(",").map(e => e.trim()) ?? [];
   return adminEmails.includes(email);
 };
 
@@ -118,6 +118,11 @@ adminRouter.post("/skills/:id/approve", async (c) => {
 
   if (skill.status !== "pending") {
     return c.json({ error: "Skill is not pending review" }, 400);
+  }
+
+  // Prevent admin from approving their own submission
+  if (skill.userId === user.sub) {
+    return c.json({ error: "Cannot approve your own submission" }, 403);
   }
 
   const approved = await approvePublicSkill(id, user.sub);

@@ -661,6 +661,18 @@ export const countApprovedPublicSkills = async (): Promise<number> => {
   return result[0]?.count ?? 0;
 };
 
+export const countUserPendingPublicSkills = async (
+  userId: string
+): Promise<number> => {
+  const result = await db
+    .select({ count: count() })
+    .from(publicSkills)
+    .where(
+      and(eq(publicSkills.userId, userId), eq(publicSkills.status, "pending"))
+    );
+  return result[0]?.count ?? 0;
+};
+
 export const countPendingPublicSkills = async (): Promise<number> => {
   const result = await db
     .select({ count: count() })
