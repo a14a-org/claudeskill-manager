@@ -567,3 +567,11 @@ export const computeSkillHash = (skill: Skill): string => {
 export const getSkillKey = (skill: Skill): string => {
   return `${skill.type}:${skill.name}`;
 };
+
+/**
+ * Check if a skill key refers to a hidden file (e.g. .DS_Store, .gitignore)
+ */
+export const isHiddenSkillKey = (skillKey: string): boolean => {
+  const name = skillKey.split(':').slice(1).join(':');
+  return name.startsWith('.');
+};
