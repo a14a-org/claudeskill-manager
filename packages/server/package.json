@@ -1,5 +1,5 @@
 {
-  "name": "@claude-skill-sync/server",
+  "name": "@claudeskill/server",
   "version": "0.1.0",
   "description": "API server for Claude Skill Sync",
   "type": "module",

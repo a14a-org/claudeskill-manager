@@ -76,7 +76,7 @@ yarn dev:cli
 ## Project Structure
 
 ```
-claude-skill-sync/
+claudeskill/
 ├── packages/
 │   ├── core/           # Shared encryption & skill parsing
 │   ├── cli/            # Command-line interface

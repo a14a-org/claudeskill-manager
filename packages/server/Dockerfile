@@ -17,8 +17,8 @@ COPY packages/server ./packages/server
 COPY tsconfig.json ./
 
 # Build
-RUN yarn workspace @claude-skill-sync/core build
-RUN yarn workspace @claude-skill-sync/server build
+RUN yarn workspace @claudeskill/core build
+RUN yarn workspace @claudeskill/server build
 
 # Production stage
 FROM node:20-alpine

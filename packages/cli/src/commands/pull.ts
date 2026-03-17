@@ -23,18 +23,18 @@ export const runPull = async (options: PullOptions = {}) => {
   const config = await loadConfig();
 
   if (!config) {
-    p.log.error("Not configured. Run 'claude-skill-sync' first to set up.");
+    p.log.error("Not configured. Run 'claudeskill' first to set up.");
     return;
   }
 
   if (config.mode === "local") {
-    p.log.error("Cannot pull in local-only mode. Change mode with 'claude-skill-sync config'.");
+    p.log.error("Cannot pull in local-only mode. Change mode with 'claudeskill config'.");
     return;
   }
 
   const credentials = await loadCredentials();
   if (!credentials?.accessToken) {
-    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    p.log.error("Not logged in. Run 'claudeskill login' first.");
     return;
   }
 

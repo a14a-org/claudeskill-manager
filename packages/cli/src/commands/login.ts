@@ -23,7 +23,7 @@ export const runLogin = async () => {
   const config = await loadConfig();
 
   if (!config) {
-    p.log.error("Not configured. Run 'claude-skill-sync' first to set up.");
+    p.log.error("Not configured. Run 'claudeskill' first to set up.");
     return;
   }
 

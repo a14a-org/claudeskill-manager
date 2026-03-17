@@ -2,8 +2,8 @@
  * Authentication utilities
  */
 
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex, randomBytes } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 /** JWT configuration */
 const JWT_SECRET = process.env["JWT_SECRET"] ?? "development-secret-change-me";
@@ -28,7 +28,7 @@ export const generateOtpCode = (): string => {
  * Hash a token for storage
  */
 export const hashToken = (token: string): string => {
-  return bytesToHex(sha256(token));
+  return bytesToHex(sha256(new TextEncoder().encode(token)));
 };
 
 /**
@@ -88,7 +88,7 @@ export const createJwt = (userId: string, email: string): string => {
   const payloadB64 = base64UrlEncode(JSON.stringify(payload));
   const message = `${headerB64}.${payloadB64}`;
 
-  const signature = bytesToHex(sha256(`${message}.${JWT_SECRET}`));
+  const signature = bytesToHex(sha256(new TextEncoder().encode(`${message}.${JWT_SECRET}`)));
   const signatureB64 = base64UrlEncode(signature);
 
   return `${message}.${signatureB64}`;
@@ -106,7 +106,7 @@ export const verifyJwt = (token: string): JwtPayload | null => {
     const message = `${headerB64}.${payloadB64}`;
 
     // Verify signature
-    const expectedSignature = bytesToHex(sha256(`${message}.${JWT_SECRET}`));
+    const expectedSignature = bytesToHex(sha256(new TextEncoder().encode(`${message}.${JWT_SECRET}`)));
     const expectedSignatureB64 = base64UrlEncode(expectedSignature);
 
     if (signatureB64 !== expectedSignatureB64) return null;

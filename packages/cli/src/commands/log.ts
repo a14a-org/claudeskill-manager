@@ -22,7 +22,7 @@ export const runLog = async (skillKey: string) => {
   const config = await loadConfig();
 
   if (!config) {
-    p.log.error("Not configured. Run 'claude-skill-sync' first to set up.");
+    p.log.error("Not configured. Run 'claudeskill' first to set up.");
     return;
   }
 
@@ -33,7 +33,7 @@ export const runLog = async (skillKey: string) => {
 
   const credentials = await loadCredentials();
   if (!credentials?.accessToken) {
-    p.log.error("Not logged in. Run 'claude-skill-sync login' first.");
+    p.log.error("Not logged in. Run 'claudeskill login' first.");
     return;
   }
 

@@ -122,7 +122,7 @@ claudeskill
 # Enter your server URL: https://skills.example.com
 ```
 
-See the [main repository](https://github.com/user/claude-skill-sync) for server setup instructions.
+See the [main repository](https://github.com/user/claudeskill) for server setup instructions.
 
 ## Requirements
 
@@ -135,5 +135,5 @@ MIT
 ## Learn More
 
 - Documentation: https://claudeskill.io
-- GitHub: https://github.com/user/claude-skill-sync
-- Report issues: https://github.com/user/claude-skill-sync/issues
+- GitHub: https://github.com/user/claudeskill
+- Report issues: https://github.com/user/claudeskill/issues
