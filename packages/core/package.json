@@ -19,7 +19,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx --test src/**/*.test.ts",
+    "test": "tsx --test src/crypto.test.ts src/skill.test.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
