@@ -32,15 +32,6 @@ type TeamSyncIndex = {
 
 const TEAM_INDEX_FILE = ".sync-index.json";
 
-const hashContent = (content: string): string => {
-  const hash = Array.from(content).reduce((hashValue, char) => {
-    const code = char.charCodeAt(0);
-    const newHash = (hashValue << 5) - hashValue + code;
-    return newHash | 0;
-  }, 0);
-  return hash.toString(16);
-};
-
 export const getManagedTeamsRoot = (): string => {
   return join(getConfigDir(), "teams");
 };
@@ -163,7 +154,6 @@ export const pushTeamSkills = async (params: {
   const results = await Promise.all(
     filtered.map(async (skill) => {
       const skillKey = `${skill.type}:${skill.name}`;
-      const localHash = hashContent(skill.content + JSON.stringify(skill.files ?? []));
       const hash = computeSkillHash(skill);
 
       if (index.skills[skillKey]?.hash === hash) {
@@ -195,7 +185,6 @@ export const pushTeamSkills = async (params: {
         type: "success" as const,
         skillKey,
         hash,
-        localHash,
         remoteUpdatedAt: result.data.createdAt,
       };
     })
@@ -205,7 +194,7 @@ export const pushTeamSkills = async (params: {
     if (result.type === "success") {
       index.skills[result.skillKey] = {
         hash: result.hash,
-        localHash: result.localHash,
+        localHash: result.hash,
         remoteUpdatedAt: result.remoteUpdatedAt,
       };
     }
@@ -282,7 +271,15 @@ export const pullTeamSkills = async (params: {
       if (existing?.localHash) {
         const localContent = await readLocalTeamSkillContent(params.teamSlug, remoteSkill.skillKey);
         if (localContent !== null) {
-          const currentLocalHash = hashContent(localContent);
+          // Compare against the hash that was last synced
+          const currentLocalHash = computeSkillHash({
+            name: remoteSkill.skillKey.split(":").slice(1).join(":"),
+            type: (remoteSkill.skillKey.split(":")[0] as SkillType) ?? "command",
+            content: localContent,
+            metadata: {} as any,
+            path: "",
+            modifiedAt: new Date(),
+          });
           if (currentLocalHash !== existing.localHash) {
             conflicts.push({
               skillKey: remoteSkill.skillKey,
@@ -308,15 +305,13 @@ export const pullTeamSkills = async (params: {
           skillResult.data.tag,
           params.teamKey
         );
+
         await writeTeamSkill(params.teamSlug, decrypted);
 
         return {
           type: "success" as const,
           skillKey: remoteSkill.skillKey,
           hash: remoteSkill.currentHash,
-          localHash: hashContent(
-            decrypted.content + JSON.stringify(decrypted.files ?? [])
-          ),
           remoteUpdatedAt: remoteSkill.updatedAt,
         };
       } catch (error) {
@@ -332,7 +327,7 @@ export const pullTeamSkills = async (params: {
     if (result.type === "success") {
       index.skills[result.skillKey] = {
         hash: result.hash,
-        localHash: result.localHash,
+        localHash: result.hash,
         remoteUpdatedAt: result.remoteUpdatedAt,
       };
     }

@@ -37,3 +37,4 @@ data/
 *.db
 *.db-journal
 *.db-wal
+.claude/worktrees/

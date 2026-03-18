@@ -164,6 +164,40 @@ export const readSkill = async (
 };
 
 /**
+ * Recursively collect all files in a directory, returning relative paths.
+ * Skips directories that start with "." or "node_modules".
+ */
+const collectFiles = async (
+  dirPath: string,
+  relativeTo: string,
+  excludeFile?: string
+): Promise<{ name: string; content: string }[]> => {
+  const entries = await readdir(dirPath, { withFileTypes: true });
+  const files: { name: string; content: string }[] = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+    const fullPath = join(dirPath, entry.name);
+    const relativePath = fullPath.slice(relativeTo.length + 1);
+
+    if (entry.isFile()) {
+      if (fullPath === excludeFile) continue;
+      try {
+        const content = await readFile(fullPath, "utf-8");
+        files.push({ name: relativePath, content });
+      } catch {
+        // Skip files that can't be read as UTF-8
+      }
+    } else if (entry.isDirectory()) {
+      const subFiles = await collectFiles(fullPath, relativeTo, excludeFile);
+      files.push(...subFiles);
+    }
+  }
+
+  return files;
+};
+
+/**
  * Read a directory-based skill (like ~/.claude/skills/*)
  */
 export const readDirectorySkill = async (
@@ -192,16 +226,8 @@ export const readDirectorySkill = async (
     const { metadata } = parseFrontmatter(content);
     const stats = await stat(mainPath);
 
-    // Read supporting files
-    const supportingFiles = await Promise.all(
-      entries
-        .filter((e) => e.isFile() && e.name !== mainFile.name)
-        .map(async (e) => {
-          const filePath = join(dirPath, e.name);
-          const fileContent = await readFile(filePath, "utf-8");
-          return { name: e.name, content: fileContent };
-        })
-    );
+    // Read all supporting files (recursively, preserving relative paths)
+    const supportingFiles = await collectFiles(dirPath, dirPath, mainPath);
 
     return {
       name,
@@ -267,10 +293,27 @@ export const listDirectorySkills = async (
   try {
     const entries = await readdir(basePath, { withFileTypes: true });
 
-    const skillPromises = entries
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-      .map(async (entry) => {
-        const dirPath = join(basePath, entry.name);
+    // Filter for directories and symlinks that resolve to directories
+    const dirEntries: { name: string; path: string }[] = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const fullPath = join(basePath, entry.name);
+      if (entry.isDirectory()) {
+        dirEntries.push({ name: entry.name, path: fullPath });
+      } else if (entry.isSymbolicLink()) {
+        try {
+          const resolved = await stat(fullPath);
+          if (resolved.isDirectory()) {
+            dirEntries.push({ name: entry.name, path: fullPath });
+          }
+        } catch {
+          // Broken symlink — skip
+        }
+      }
+    }
+
+    const skillPromises = dirEntries
+      .map(async ({ path: dirPath }) => {
         return await readDirectorySkill(dirPath, type);
       });
 
