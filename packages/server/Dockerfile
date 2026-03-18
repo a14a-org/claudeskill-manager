@@ -40,7 +40,7 @@ COPY --from=builder /app/packages/server/dist ./packages/server/dist
 # Environment
 ENV NODE_ENV=production
 ENV PORT=3001
-ENV ENABLE_TEAM_SHARING=false
+ENV ENABLE_TEAM_SHARING=true
 
 EXPOSE 3001
 

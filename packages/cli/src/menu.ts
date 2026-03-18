@@ -10,12 +10,14 @@ import { runPull } from "./commands/pull.js";
 import { runLogin } from "./commands/login.js";
 import { runLogout } from "./commands/logout.js";
 import { loadConfig } from "./config.js";
+import { runTeamMenu, createKeyCache, clearKeyCache } from "./teamMenu.js";
 
 type MenuAction =
   | "status"
   | "list"
   | "push"
   | "pull"
+  | "teams"
   | "login"
   | "logout"
   | "help"
@@ -27,6 +29,7 @@ type MenuAction =
 export const runInteractiveMenu = async () => {
   p.intro("Claude Skill Sync");
 
+  const keyCache = createKeyCache();
   let shouldContinue = true;
 
   while (shouldContinue) {
@@ -41,7 +44,8 @@ export const runInteractiveMenu = async () => {
     if (isCloudMode) {
       options.push(
         { value: "push", label: "Push", hint: "upload local changes" },
-        { value: "pull", label: "Pull", hint: "download from cloud" }
+        { value: "pull", label: "Pull", hint: "download from cloud" },
+        { value: "teams", label: "Teams", hint: "manage team skills" }
       );
     }
 
@@ -58,6 +62,7 @@ export const runInteractiveMenu = async () => {
     });
 
     if (p.isCancel(action)) {
+      clearKeyCache(keyCache);
       p.outro("Goodbye!");
       return;
     }
@@ -81,11 +86,17 @@ export const runInteractiveMenu = async () => {
         await runPull({ interactive: true });
         break;
 
+      case "teams":
+        await runTeamMenu(keyCache);
+        // Teams has its own navigation — skip the "What's next?" prompt
+        continue;
+
       case "login":
         await runLogin();
         break;
 
       case "logout":
+        clearKeyCache(keyCache);
         await runLogout();
         shouldContinue = false;
         break;
@@ -115,6 +126,7 @@ export const runInteractiveMenu = async () => {
     }
   }
 
+  clearKeyCache(keyCache);
   p.outro("Goodbye!");
 };
 
@@ -161,11 +173,14 @@ Commands (can also be run directly):
   claudeskill login        Login to account
   claudeskill logout       Logout
 
-Version History:
+Team Commands:
 
-  claudeskill log <skill>              Show version history
-  claudeskill checkout <skill> <hash>  Restore a version
-  claudeskill diff <skill> <h1> <h2>   Compare versions
+  claudeskill team list                        List your teams
+  claudeskill team create <name>               Create a new team
+  claudeskill team show <team-id>              Show team details
+  claudeskill team invite <team-id> <email>    Invite a member
+  claudeskill team push <team-id>              Push team skills
+  claudeskill team pull <team-id>              Pull team skills
 
 Learn more: https://claudeskill.io
 `);
