@@ -161,25 +161,25 @@ export const pushSkills = async (
   const skills = await listAllSkills();
   const index = await loadSyncIndex();
 
-  const results = await Promise.all(
-    skills.map(async (skill) => {
-      // Use type:name as key to allow same name across types
+  // Process skills sequentially to avoid overwhelming the server
+  type PushResult = { type: 'skipped'; skillKey: string; hash: string } | { type: 'success'; skillKey: string; hash: string; remoteUpdatedAt: string } | { type: 'error'; skillKey: string; message: string };
+  const results: PushResult[] = [];
+
+  for (const skill of skills) {
       const skillKey = getSkillKey(skill);
       const contentHash = computeSkillHash(skill);
       const existing = index.skills[skillKey];
 
-      // Skip if unchanged (same content hash) unless force push
       if (!force && existing?.hash === contentHash) {
         onProgress?.(`Skipping ${skill.name} (unchanged)`);
-        return { type: 'skipped' as const, skillKey, hash: contentHash };
+        results.push({ type: 'skipped', skillKey, hash: contentHash });
+        continue;
       }
 
       onProgress?.(`Pushing ${skill.type}/${skill.name} [${contentHash}]...`);
 
-      // Encrypt skill
       const encrypted = encryptSkill(skill, masterKey);
 
-      // Push new version
       const result = await api.pushSkillVersion(
         skillKey,
         contentHash,
@@ -190,21 +190,20 @@ export const pushSkills = async (
       );
 
       if (result.ok) {
-        return {
-          type: 'success' as const,
+        results.push({
+          type: 'success',
           skillKey,
           hash: contentHash,
           remoteUpdatedAt: (result.data as { createdAt: string }).createdAt,
-        };
+        });
+      } else {
+        results.push({
+          type: 'error',
+          skillKey,
+          message: `Failed to push ${skill.type}/${skill.name}: ${result.error}`,
+        });
       }
-
-      return {
-        type: 'error' as const,
-        skillKey,
-        message: `Failed to push ${skill.type}/${skill.name}: ${result.error}`,
-      };
-    })
-  );
+  }
 
   // Build new index from current local skills only (prunes stale entries)
   const localSkillKeys = new Set(skills.map((s) => getSkillKey(s)));
@@ -326,30 +325,31 @@ export const pullSkills = async (
     return { pulled: 0, errors: [`Failed to list skills: ${listResult.error}`] };
   }
 
-  const results = await Promise.all(
-    listResult.data.skills
-    .filter((remoteSkill) => {
-      // Skip hidden-named skills (e.g. .DS_Store, .gitignore) — they should
-      // never have been synced and must not be written to disk
-      return !isHiddenSkillKey(remoteSkill.skillKey);
-    })
-    .map(async (remoteSkill) => {
+  // Process skills sequentially to avoid overwhelming the server
+  const remoteSkills = listResult.data.skills.filter(
+    (remoteSkill) => !isHiddenSkillKey(remoteSkill.skillKey)
+  );
+
+  type PullResult = { type: 'skipped' } | { type: 'success'; skillKey: string; hash: string; updatedAt: string } | { type: 'error'; message: string };
+  const results: PullResult[] = [];
+
+  for (const remoteSkill of remoteSkills) {
       const existing = index.skills[remoteSkill.skillKey];
 
       // Skip if no versions
       if (!remoteSkill.currentHash) {
         onProgress?.(`Skipping ${remoteSkill.skillKey} (no versions)`);
-        return { type: 'skipped' as const };
+        results.push({ type: 'skipped' });
+        continue;
       }
 
       // Skip if unchanged (same hash) AND local file actually exists.
-      // If the sync-index says "synced" but the file is missing (e.g.
-      // different machine, deleted locally), we must re-download.
       if (existing?.hash === remoteSkill.currentHash) {
         const exists = await localSkillExists(remoteSkill.skillKey);
         if (exists) {
           onProgress?.(`Skipping ${remoteSkill.skillKey} (unchanged)`);
-          return { type: 'skipped' as const };
+          results.push({ type: 'skipped' });
+          continue;
         }
         onProgress?.(`Re-downloading ${remoteSkill.skillKey} (missing locally)...`);
       }
@@ -359,10 +359,11 @@ export const pullSkills = async (
       // Download current version
       const skillResult = await api.getSkill(remoteSkill.skillKey);
       if (!skillResult.ok) {
-        return {
-          type: 'error' as const,
+        results.push({
+          type: 'error',
           message: `Failed to get ${remoteSkill.skillKey}: ${skillResult.error}`,
-        };
+        });
+        continue;
       }
 
       // Decrypt
@@ -375,10 +376,11 @@ export const pullSkills = async (
           masterKey
         );
       } catch (err) {
-        return {
-          type: 'error' as const,
+        results.push({
+          type: 'error',
           message: `Failed to decrypt ${remoteSkill.skillKey}: ${err}`,
-        };
+        });
+        continue;
       }
 
       const skillType = decrypted.type ?? "command";
@@ -387,57 +389,49 @@ export const pullSkills = async (
 
       // Path traversal protection
       if (!isSafeName(decrypted.name)) {
-        return {
-          type: 'error' as const,
+        results.push({
+          type: 'error',
           message: `Rejected ${remoteSkill.skillKey}: unsafe name "${decrypted.name}"`,
-        };
+        });
+        continue;
       }
       if (decrypted.files?.some((f) => !isSafeName(f.name))) {
-        return {
-          type: 'error' as const,
+        results.push({
+          type: 'error',
           message: `Rejected ${remoteSkill.skillKey}: unsafe file name in supporting files`,
-        };
+        });
+        continue;
       }
 
       try {
         if (skillType === "skill" && decrypted.files) {
-          // Directory-based skill
           const skillDir = join(baseDir, decrypted.name);
           await mkdir(skillDir, { recursive: true });
-
-          // Write main skill file
           await writeFile(join(skillDir, "SKILL.md"), decrypted.content, "utf-8");
-
-          // Write supporting files
-          await Promise.all(
-            decrypted.files.map((f) =>
-              writeFile(join(skillDir, f.name), f.content, "utf-8")
-            )
-          );
+          for (const f of decrypted.files) {
+            await writeFile(join(skillDir, f.name), f.content, "utf-8");
+          }
         } else {
-          // File-based skill (command or agent)
           await mkdir(baseDir, { recursive: true });
           await writeFile(join(baseDir, `${decrypted.name}.md`), decrypted.content, "utf-8");
         }
       } catch (err) {
-        return {
-          type: 'error' as const,
+        results.push({
+          type: 'error',
           message: `Failed to write ${decrypted.name}: ${err}`,
-        };
+        });
+        continue;
       }
 
       onProgress?.(`Pulled ${skillType}/${decrypted.name} [${remoteSkill.currentHash}]`);
 
-      return {
-        type: 'success' as const,
+      results.push({
+        type: 'success',
         skillKey,
         hash: remoteSkill.currentHash,
-        content: decrypted.content,
-        files: decrypted.files,
         updatedAt: remoteSkill.updatedAt,
-      };
-    })
-  );
+      });
+  }
 
   // Update index entries for successfully pulled skills
   for (const result of results) {

@@ -1,6 +1,6 @@
 {
   "name": "@claudeskill/cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Sync your Claude Code skills across devices with zero-knowledge encryption",
   "type": "module",
   "bin": {

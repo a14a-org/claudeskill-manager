@@ -49,7 +49,17 @@ const apiRequest = async <T>(
       headers,
     });
 
-    const data = await response.json();
+    const text = await response.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return {
+        ok: false as const,
+        error: `Server returned non-JSON response: ${text.slice(0, 100)}`,
+        status: response.status,
+      };
+    }
 
     if (!response.ok) {
       // Try to refresh token if unauthorized
