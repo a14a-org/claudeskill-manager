@@ -4,7 +4,7 @@
  * Handles encrypting, uploading, downloading, and decrypting skills.
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import {
   listAllSkills,
@@ -289,6 +289,29 @@ const isSafeName = (name: string): boolean => {
 };
 
 /**
+ * Check if a skill exists on the local filesystem.
+ * Used to detect stale sync-index entries where the index says "synced"
+ * but the actual files have been deleted or never existed on this machine.
+ */
+const localSkillExists = async (skillKey: string): Promise<boolean> => {
+  const [type, ...nameParts] = skillKey.split(":");
+  const name = nameParts.join(":");
+  const skillType = (type as SkillType) ?? "command";
+  const baseDir = getSkillTypeDir(skillType);
+
+  try {
+    if (skillType === "skill") {
+      await access(join(baseDir, name, "SKILL.md"));
+    } else {
+      await access(join(baseDir, `${name}.md`));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Pull remote skills to local
  */
 export const pullSkills = async (
@@ -313,16 +336,22 @@ export const pullSkills = async (
     .map(async (remoteSkill) => {
       const existing = index.skills[remoteSkill.skillKey];
 
-      // Skip if unchanged (same hash)
-      if (existing?.hash === remoteSkill.currentHash) {
-        onProgress?.(`Skipping ${remoteSkill.skillKey} (unchanged)`);
-        return { type: 'skipped' as const };
-      }
-
       // Skip if no versions
       if (!remoteSkill.currentHash) {
         onProgress?.(`Skipping ${remoteSkill.skillKey} (no versions)`);
         return { type: 'skipped' as const };
+      }
+
+      // Skip if unchanged (same hash) AND local file actually exists.
+      // If the sync-index says "synced" but the file is missing (e.g.
+      // different machine, deleted locally), we must re-download.
+      if (existing?.hash === remoteSkill.currentHash) {
+        const exists = await localSkillExists(remoteSkill.skillKey);
+        if (exists) {
+          onProgress?.(`Skipping ${remoteSkill.skillKey} (unchanged)`);
+          return { type: 'skipped' as const };
+        }
+        onProgress?.(`Re-downloading ${remoteSkill.skillKey} (missing locally)...`);
       }
 
       onProgress?.(`Pulling ${remoteSkill.skillKey} [${remoteSkill.currentHash}]...`);
