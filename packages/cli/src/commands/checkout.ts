@@ -144,7 +144,7 @@ export const runCheckout = async (skillKey: string, hash: string) => {
     const hash = Array.from(content).reduce((hash, char) => {
       const code = char.charCodeAt(0);
       const newHash = (hash << 5) - hash + code;
-      return newHash & newHash;
+      return newHash | 0;
     }, 0);
     return hash.toString(16);
   };

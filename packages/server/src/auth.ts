@@ -3,12 +3,23 @@
  */
 
 import { sha256 } from "@noble/hashes/sha2.js";
+import { hmac } from "@noble/hashes/hmac.js";
 import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 /** JWT configuration */
 const JWT_SECRET = process.env["JWT_SECRET"] ?? "development-secret-change-me";
 const ACCESS_TOKEN_EXPIRY = 60 * 60; // 1 hour in seconds
 const REFRESH_TOKEN_EXPIRY = 30 * 24 * 60 * 60; // 30 days in seconds
+
+// Warn if using default secret in production
+if (
+  process.env["NODE_ENV"] === "production" &&
+  JWT_SECRET === "development-secret-change-me"
+) {
+  console.warn(
+    "WARNING: JWT_SECRET is set to the default development value. Set a secure JWT_SECRET environment variable for production."
+  );
+}
 
 /** OTP configuration */
 const OTP_LENGTH = 6;
@@ -88,7 +99,9 @@ export const createJwt = (userId: string, email: string): string => {
   const payloadB64 = base64UrlEncode(JSON.stringify(payload));
   const message = `${headerB64}.${payloadB64}`;
 
-  const signature = bytesToHex(sha256(new TextEncoder().encode(`${message}.${JWT_SECRET}`)));
+  const signature = bytesToHex(
+    hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message))
+  );
   const signatureB64 = base64UrlEncode(signature);
 
   return `${message}.${signatureB64}`;
@@ -106,7 +119,9 @@ export const verifyJwt = (token: string): JwtPayload | null => {
     const message = `${headerB64}.${payloadB64}`;
 
     // Verify signature
-    const expectedSignature = bytesToHex(sha256(new TextEncoder().encode(`${message}.${JWT_SECRET}`)));
+    const expectedSignature = bytesToHex(
+      hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message))
+    );
     const expectedSignatureB64 = base64UrlEncode(expectedSignature);
 
     if (signatureB64 !== expectedSignatureB64) return null;

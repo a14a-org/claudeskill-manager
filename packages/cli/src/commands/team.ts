@@ -37,6 +37,13 @@ import {
 } from "@claudeskill/core";
 
 /**
+ * Derive a filesystem-safe slug from a team name.
+ */
+const deriveTeamSlug = (name: string): string => {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+};
+
+/**
  * Ensure user has a keypair for team operations
  * Generates one if not present
  */
@@ -515,7 +522,7 @@ export const runTeamPush = async (
     return;
   }
 
-  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const teamSlug = deriveTeamSlug(teamResult.data.name);
   const spinner = p.spinner();
   spinner.start("Pushing team skills...");
 
@@ -561,7 +568,7 @@ export const runTeamPull = async (
     return;
   }
 
-  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const teamSlug = deriveTeamSlug(teamResult.data.name);
   const spinner = p.spinner();
   spinner.start("Pulling team skills...");
 
@@ -581,6 +588,12 @@ export const runTeamPull = async (
   }
   for (const error of result.errors) {
     p.log.error(error);
+  }
+  if (result.conflicts.length > 0) {
+    p.log.warning(`${result.conflicts.length} skill(s) skipped due to local modifications:`);
+    for (const conflict of result.conflicts) {
+      p.log.warning(`  ${conflict.skillKey}: ${conflict.reason}`);
+    }
   }
 };
 
@@ -642,7 +655,7 @@ export const runTeamCheckout = async (
     return;
   }
 
-  const teamSlug = teamResult.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const teamSlug = deriveTeamSlug(teamResult.data.name);
   const spinner = p.spinner();
   spinner.start("Fetching version...");
 
@@ -720,7 +733,18 @@ export const runTeamRemoveMember = async (
     return;
   }
 
-  spinner.message("Rotating team key...");
+  spinner.stop("Member found");
+
+  const confirmRemoval = await p.confirm({
+    message: `Remove ${email} from team? This will rotate the team key.`,
+  });
+
+  if (p.isCancel(confirmRemoval) || !confirmRemoval) {
+    p.cancel("Removal cancelled.");
+    return;
+  }
+
+  spinner.start("Rotating team key...");
 
   // Get current team key version
   const teamResult = await getTeam(teamId);

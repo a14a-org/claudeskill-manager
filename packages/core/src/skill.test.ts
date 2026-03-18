@@ -12,6 +12,7 @@ import {
   listDirectorySkills,
   computeSkillHash,
   getSkillKey,
+  isHiddenSkillKey,
   getSkillDescription,
   getSkillTriggers,
 } from "./skill.ts";
@@ -282,4 +283,24 @@ test("getSkillTriggers includes skill name as trigger", () => {
   };
   const triggers = getSkillTriggers(skill);
   assert.ok(triggers.includes("/deploy"));
+});
+
+// =============================================================================
+// isHiddenSkillKey
+// =============================================================================
+
+test("isHiddenSkillKey returns true for hidden skill keys", () => {
+  assert.equal(isHiddenSkillKey("md:.DS_Store"), true);
+  assert.equal(isHiddenSkillKey("md:.gitignore"), true);
+  assert.equal(isHiddenSkillKey("md:.env"), true);
+});
+
+test("isHiddenSkillKey returns false for normal skill keys", () => {
+  assert.equal(isHiddenSkillKey("md:my-skill"), false);
+  assert.equal(isHiddenSkillKey("md:another-skill"), false);
+});
+
+test("isHiddenSkillKey handles keys with multiple colons", () => {
+  assert.equal(isHiddenSkillKey("md:some:skill"), false);
+  assert.equal(isHiddenSkillKey("md:.hidden:file"), true);
 });

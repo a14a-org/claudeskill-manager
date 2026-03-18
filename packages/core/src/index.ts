@@ -71,6 +71,7 @@ export {
   getSkillDescription,
   getSkillKey,
   getSkillSize,
+  isHiddenSkillKey,
   getSkillsPath,
   getSkillTools,
   getSkillTriggers,
