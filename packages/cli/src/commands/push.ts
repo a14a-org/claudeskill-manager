@@ -18,6 +18,7 @@ import * as api from "../api.js";
 export type PushOptions = Partial<{
   message: string;
   interactive: boolean;
+  force: boolean;
 }>;
 
 /**
@@ -147,7 +148,7 @@ export const runPush = async (options: PushOptions = {}) => {
 
   const { pushed, errors } = await pushSkills(masterKey, (msg) => {
     spinner.message(msg);
-  }, options.message);
+  }, options.message, options.force);
 
   spinner.stop("Push complete");
 

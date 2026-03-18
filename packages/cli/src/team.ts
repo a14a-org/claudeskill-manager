@@ -32,13 +32,11 @@ type TeamSyncIndex = {
 
 const TEAM_INDEX_FILE = ".sync-index.json";
 
-const hashContent = (content: string): string => {
-  const hash = Array.from(content).reduce((hashValue, char) => {
-    const code = char.charCodeAt(0);
-    const newHash = (hashValue << 5) - hashValue + code;
-    return newHash & newHash;
-  }, 0);
-  return hash.toString(16);
+/**
+ * Validate that a name doesn't contain path traversal characters.
+ */
+const isSafeName = (name: string): boolean => {
+  return !name.includes("/") && !name.includes("\\") && !name.includes("..") && name.length > 0;
 };
 
 export const getManagedTeamsRoot = (): string => {
@@ -141,7 +139,6 @@ export const pushTeamSkills = async (params: {
   const results = await Promise.all(
     filtered.map(async (skill) => {
       const skillKey = `${skill.type}:${skill.name}`;
-      const localHash = hashContent(skill.content + JSON.stringify(skill.files ?? []));
       const hash = computeSkillHash(skill);
 
       if (index.skills[skillKey]?.hash === hash) {
@@ -173,7 +170,6 @@ export const pushTeamSkills = async (params: {
         type: "success" as const,
         skillKey,
         hash,
-        localHash,
         remoteUpdatedAt: result.data.createdAt,
       };
     })
@@ -183,7 +179,7 @@ export const pushTeamSkills = async (params: {
     if (result.type === "success") {
       index.skills[result.skillKey] = {
         hash: result.hash,
-        localHash: result.localHash,
+        localHash: result.hash,
         remoteUpdatedAt: result.remoteUpdatedAt,
       };
     }
@@ -239,15 +235,27 @@ export const pullTeamSkills = async (params: {
           skillResult.data.tag,
           params.teamKey
         );
+
+        // Path traversal protection
+        if (!isSafeName(decrypted.name)) {
+          return {
+            type: "error" as const,
+            message: `Rejected ${remoteSkill.skillKey}: unsafe name "${decrypted.name}"`,
+          };
+        }
+        if (decrypted.files?.some((f) => !isSafeName(f.name))) {
+          return {
+            type: "error" as const,
+            message: `Rejected ${remoteSkill.skillKey}: unsafe file name in supporting files`,
+          };
+        }
+
         await writeTeamSkill(params.teamSlug, decrypted);
 
         return {
           type: "success" as const,
           skillKey: remoteSkill.skillKey,
           hash: remoteSkill.currentHash,
-          localHash: hashContent(
-            decrypted.content + JSON.stringify(decrypted.files ?? [])
-          ),
           remoteUpdatedAt: remoteSkill.updatedAt,
         };
       } catch (error) {
@@ -263,7 +271,7 @@ export const pullTeamSkills = async (params: {
     if (result.type === "success") {
       index.skills[result.skillKey] = {
         hash: result.hash,
-        localHash: result.localHash,
+        localHash: result.hash,
         remoteUpdatedAt: result.remoteUpdatedAt,
       };
     }

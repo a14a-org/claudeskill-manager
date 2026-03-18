@@ -1,6 +1,6 @@
 {
   "name": "@claudeskill/core",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Core encryption and skill management for Claude Skill Sync",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types src/**/*.test.ts",
+    "test": "npx tsx --test src/**/*.test.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {

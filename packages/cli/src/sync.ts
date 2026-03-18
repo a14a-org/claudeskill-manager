@@ -73,17 +73,6 @@ export const saveSyncIndex = async (index: SyncIndex) => {
   await writeFile(indexPath, JSON.stringify(index, null, 2), "utf-8");
 };
 
-/**
- * Simple hash for change detection
- */
-const hashContent = (content: string) => {
-  const hash = Array.from(content).reduce((hash, char) => {
-    const code = char.charCodeAt(0);
-    const newHash = (hash << 5) - hash + code;
-    return newHash & newHash; // Convert to 32-bit integer
-  }, 0);
-  return hash.toString(16);
-};
 
 /**
  * Get the master key from credentials
@@ -165,7 +154,8 @@ export const decryptSkill = (
 export const pushSkills = async (
   masterKey: Uint8Array,
   onProgress: ((message: string) => void) | undefined,
-  message: string | undefined
+  message: string | undefined,
+  force: boolean = false
 ) => {
   const skills = await listAllSkills();
   const index = await loadSyncIndex();
@@ -175,13 +165,12 @@ export const pushSkills = async (
       // Use type:name as key to allow same name across types
       const skillKey = getSkillKey(skill);
       const contentHash = computeSkillHash(skill);
-      const localHash = hashContent(skill.content + JSON.stringify(skill.files ?? []));
       const existing = index.skills[skillKey];
 
-      // Skip if unchanged (same content hash)
-      if (existing?.hash === contentHash) {
+      // Skip if unchanged (same content hash) unless force push
+      if (!force && existing?.hash === contentHash) {
         onProgress?.(`Skipping ${skill.name} (unchanged)`);
-        return { type: 'skipped' as const };
+        return { type: 'skipped' as const, skillKey, hash: contentHash };
       }
 
       onProgress?.(`Pushing ${skill.type}/${skill.name} [${contentHash}]...`);
@@ -204,32 +193,42 @@ export const pushSkills = async (
           type: 'success' as const,
           skillKey,
           hash: contentHash,
-          localHash,
           remoteUpdatedAt: (result.data as { createdAt: string }).createdAt,
         };
       }
 
       return {
         type: 'error' as const,
+        skillKey,
         message: `Failed to push ${skill.type}/${skill.name}: ${result.error}`,
       };
     })
   );
 
-  // Process results
-  index.skills = results
-    .filter((result) => result.type === 'success')
-    .reduce((acc, result) => {
-      if (result.type === 'success') {
-        acc[result.skillKey] = {
-          hash: result.hash,
-          blobId: null,
-          localHash: result.localHash,
-          remoteUpdatedAt: result.remoteUpdatedAt,
-        };
-      }
-      return acc;
-    }, index.skills);
+  // Build new index from current local skills only (prunes stale entries)
+  const localSkillKeys = new Set(skills.map((s) => getSkillKey(s)));
+  const newSkills: typeof index.skills = {};
+
+  // Keep entries for skills that still exist locally
+  for (const [key, value] of Object.entries(index.skills)) {
+    if (localSkillKeys.has(key)) {
+      newSkills[key] = value;
+    }
+  }
+
+  // Update entries for successfully pushed skills
+  for (const result of results) {
+    if (result.type === 'success') {
+      newSkills[result.skillKey] = {
+        hash: result.hash,
+        blobId: null,
+        localHash: result.hash,
+        remoteUpdatedAt: result.remoteUpdatedAt,
+      };
+    }
+  }
+
+  index.skills = newSkills;
 
   const pushed = results.filter((r) => r.type === 'success').length;
   const errors = results
@@ -252,6 +251,14 @@ const getSkillTypeDir = (type: SkillType) => {
     agent: "agents",
   };
   return join(claudeDir, typeDirs[type]);
+};
+
+/**
+ * Validate that a name doesn't contain path traversal characters.
+ * Prevents writing files outside the expected directory.
+ */
+const isSafeName = (name: string): boolean => {
+  return !name.includes("/") && !name.includes("\\") && !name.includes("..") && name.length > 0;
 };
 
 /**
@@ -316,6 +323,20 @@ export const pullSkills = async (
       const skillKey = remoteSkill.skillKey;
       const baseDir = getSkillTypeDir(skillType);
 
+      // Path traversal protection
+      if (!isSafeName(decrypted.name)) {
+        return {
+          type: 'error' as const,
+          message: `Rejected ${remoteSkill.skillKey}: unsafe name "${decrypted.name}"`,
+        };
+      }
+      if (decrypted.files?.some((f) => !isSafeName(f.name))) {
+        return {
+          type: 'error' as const,
+          message: `Rejected ${remoteSkill.skillKey}: unsafe file name in supporting files`,
+        };
+      }
+
       try {
         if (skillType === "skill" && decrypted.files) {
           // Directory-based skill
@@ -356,20 +377,17 @@ export const pullSkills = async (
     })
   );
 
-  // Process results
-  index.skills = results
-    .filter((result) => result.type === 'success')
-    .reduce((acc, result) => {
-      if (result.type === 'success') {
-        acc[result.skillKey] = {
-          hash: result.hash,
-          blobId: null,
-          localHash: hashContent(result.content + JSON.stringify(result.files ?? [])),
-          remoteUpdatedAt: result.updatedAt,
-        };
-      }
-      return acc;
-    }, index.skills);
+  // Update index entries for successfully pulled skills
+  for (const result of results) {
+    if (result.type === 'success') {
+      index.skills[result.skillKey] = {
+        hash: result.hash,
+        blobId: null,
+        localHash: result.hash,
+        remoteUpdatedAt: result.updatedAt,
+      };
+    }
+  }
 
   const pulled = results.filter((r) => r.type === 'success').length;
   const errors = results

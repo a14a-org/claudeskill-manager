@@ -35,7 +35,7 @@ import { loadConfig } from "./config.js";
 import { loadCredentials } from "./credentials.js";
 import { getMasterKey } from "./sync.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.3.0";
 
 const showHelp = (): void => {
   console.log(`
@@ -78,6 +78,7 @@ List Options:
 
 Push Options:
   -m <message>     Commit message for this version
+  --force          Push all skills regardless of sync state
 
 Options:
   --version, -v    Show version
@@ -166,7 +167,8 @@ const main = async (): Promise<void> => {
       const flags = args.slice(1);
       const messageIndex = flags.indexOf("-m");
       const message = messageIndex >= 0 ? flags[messageIndex + 1] : undefined;
-      await runPush({ message });
+      const force = flags.includes("--force");
+      await runPush({ message, force });
       break;
     }
 
