@@ -163,9 +163,15 @@ export const readSkill = async (
   };
 };
 
+/** Directories to skip when collecting supporting files for a skill */
+const SKIP_DIRS = new Set([
+  "node_modules", "dist", "build", "out", ".turbo", ".next",
+  "__pycache__", ".git", "coverage", ".cache",
+]);
+
 /**
  * Recursively collect all files in a directory, returning relative paths.
- * Skips directories that start with "." or "node_modules".
+ * Skips build artifacts, node_modules, and hidden directories.
  */
 const collectFiles = async (
   dirPath: string,
@@ -176,13 +182,16 @@ const collectFiles = async (
   const files: { name: string; content: string }[] = [];
 
   for (const entry of entries) {
-    if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+    if (entry.name.startsWith(".") || SKIP_DIRS.has(entry.name)) continue;
     const fullPath = join(dirPath, entry.name);
     const relativePath = fullPath.slice(relativeTo.length + 1);
 
     if (entry.isFile()) {
       if (fullPath === excludeFile) continue;
       try {
+        const fileStats = await stat(fullPath);
+        // Skip files larger than 512KB — likely binaries or build artifacts
+        if (fileStats.size > 512 * 1024) continue;
         const content = await readFile(fullPath, "utf-8");
         files.push({ name: relativePath, content });
       } catch {
