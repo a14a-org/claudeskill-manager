@@ -18,6 +18,20 @@ import { teamsRouter } from "./routes/teams.js";
 const app = new Hono();
 const enableTeamSharing = process.env["ENABLE_TEAM_SHARING"] === "true";
 
+// Security headers
+app.use("*", async (c, next) => {
+	await next();
+	c.header("X-Frame-Options", "DENY");
+	c.header("X-Content-Type-Options", "nosniff");
+	c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+	c.header("X-XSS-Protection", "1; mode=block");
+	c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+	c.header(
+		"Strict-Transport-Security",
+		"max-age=31536000; includeSubDomains; preload",
+	);
+});
+
 // Middleware
 app.use("*", logger());
 app.use(
