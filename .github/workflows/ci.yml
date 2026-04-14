@@ -18,19 +18,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: yarn
+          bun-version: 1.3.9
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: Build
-        run: yarn build
+        run: bun run build
 
       - name: Typecheck
-        run: yarn typecheck
+        run: bun run typecheck
 
       - name: Test
-        run: yarn test
+        run: bun run test
