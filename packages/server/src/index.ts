@@ -2,17 +2,17 @@
  * Claude Skill Sync API Server
  */
 
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { serve } from "@hono/node-server";
 import { closeDb, getPublicStats } from "./db/index.js";
+import { accountRoutes } from "./routes/account.js";
+import { adminRouter } from "./routes/admin.js";
 import { authRoutes } from "./routes/auth.js";
 import { blobRoutes } from "./routes/blobs.js";
-import { accountRoutes } from "./routes/account.js";
-import { skillsRouter } from "./routes/skills.js";
 import { publicSkillsRouter } from "./routes/public-skills.js";
-import { adminRouter } from "./routes/admin.js";
+import { skillsRouter } from "./routes/skills.js";
 import { teamsRouter } from "./routes/teams.js";
 
 const app = new Hono();
@@ -21,37 +21,37 @@ const enableTeamSharing = process.env["ENABLE_TEAM_SHARING"] === "true";
 // Middleware
 app.use("*", logger());
 app.use(
-  "*",
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3005",
-      "http://localhost:5173",
-      "https://claudeskill.io",
-    ],
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
+	"*",
+	cors({
+		origin: [
+			"http://localhost:3000",
+			"http://localhost:3005",
+			"http://localhost:5173",
+			"https://claudeskill.io",
+		],
+		allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+		allowHeaders: ["Content-Type", "Authorization"],
+		credentials: true,
+	}),
 );
 
 // Health check
 app.get("/", (c) => {
-  return c.json({
-    name: "Claude Skill Sync API",
-    version: "0.1.0",
-    status: "ok",
-  });
+	return c.json({
+		name: "Claude Skill Sync API",
+		version: "0.1.0",
+		status: "ok",
+	});
 });
 
 app.get("/health", (c) => {
-  return c.json({ status: "ok" });
+	return c.json({ status: "ok" });
 });
 
 // Public stats (no auth required)
 app.get("/stats", async (c) => {
-  const stats = await getPublicStats();
-  return c.json(stats);
+	const stats = await getPublicStats();
+	return c.json(stats);
 });
 
 // Routes
@@ -62,18 +62,18 @@ app.route("/skills", skillsRouter);
 app.route("/public/skills", publicSkillsRouter);
 app.route("/admin", adminRouter);
 if (enableTeamSharing) {
-  app.route("/teams", teamsRouter);
+	app.route("/teams", teamsRouter);
 }
 
 // 404 handler
 app.notFound((c) => {
-  return c.json({ error: "Not found" }, 404);
+	return c.json({ error: "Not found" }, 404);
 });
 
 // Error handler
 app.onError((err, c) => {
-  console.error("Server error:", err);
-  return c.json({ error: "Internal server error" }, 500);
+	console.error("Server error:", err);
+	return c.json({ error: "Internal server error" }, 500);
 });
 
 // Start server
@@ -83,17 +83,17 @@ console.log(`Starting server on port ${port}...`);
 console.log(`Team sharing routes: ${enableTeamSharing ? "enabled" : "disabled"}`);
 
 serve({
-  fetch: app.fetch,
-  port,
+	fetch: app.fetch,
+	port,
 });
 
 console.log(`Server running at http://localhost:${port}`);
 
 // Graceful shutdown
 const shutdown = async (): Promise<void> => {
-  console.log("\nShutting down...");
-  await closeDb();
-  process.exit(0);
+	console.log("\nShutting down...");
+	await closeDb();
+	process.exit(0);
 };
 
 process.on("SIGINT", () => void shutdown());
