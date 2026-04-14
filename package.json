@@ -17,6 +17,7 @@
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
     "postgres": "^3.4.9",
     "turbo": "^2.9.6",
     "typescript": "^5.7.2"
