@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
-    "@noble/hashes": "^2.0.1"
+    "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
