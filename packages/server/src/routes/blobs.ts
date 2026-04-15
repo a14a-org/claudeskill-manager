@@ -3,13 +3,7 @@
  */
 
 import { Hono } from "hono";
-import {
-  listUserBlobs,
-  findBlobById,
-  upsertBlob,
-  deleteBlob,
-  generateId,
-} from "../db/index.js";
+import { deleteBlob, findBlobById, generateId, listUserBlobs, upsertBlob } from "../db/index.js";
 import { authMiddleware, getUser } from "../middleware.js";
 
 export const blobRoutes = new Hono();
@@ -22,15 +16,15 @@ blobRoutes.use("*", authMiddleware);
  * GET /blobs
  */
 blobRoutes.get("/", async (c) => {
-  const user = getUser(c);
-  const blobs = await listUserBlobs(user.sub);
+	const user = getUser(c);
+	const blobs = await listUserBlobs(user.sub);
 
-  return c.json({
-    blobs: blobs.map((b) => ({
-      id: b.id,
-      updatedAt: b.updatedAt,
-    })),
-  });
+	return c.json({
+		blobs: blobs.map((b) => ({
+			id: b.id,
+			updatedAt: b.updatedAt,
+		})),
+	});
 });
 
 /**
@@ -38,21 +32,21 @@ blobRoutes.get("/", async (c) => {
  * GET /blobs/:id
  */
 blobRoutes.get("/:id", async (c) => {
-  const user = getUser(c);
-  const id = c.req.param("id");
+	const user = getUser(c);
+	const id = c.req.param("id");
 
-  const blob = await findBlobById(id, user.sub);
-  if (!blob) {
-    return c.json({ error: "Blob not found" }, 404);
-  }
+	const blob = await findBlobById(id, user.sub);
+	if (!blob) {
+		return c.json({ error: "Blob not found" }, 404);
+	}
 
-  return c.json({
-    id: blob.id,
-    encryptedData: blob.encryptedData,
-    iv: blob.iv,
-    tag: blob.tag,
-    updatedAt: blob.updatedAt,
-  });
+	return c.json({
+		id: blob.id,
+		encryptedData: blob.encryptedData,
+		iv: blob.iv,
+		tag: blob.tag,
+		updatedAt: blob.updatedAt,
+	});
 });
 
 /**
@@ -60,28 +54,25 @@ blobRoutes.get("/:id", async (c) => {
  * PUT /blobs/:id
  */
 blobRoutes.put("/:id", async (c) => {
-  const user = getUser(c);
-  const id = c.req.param("id");
+	const user = getUser(c);
+	const id = c.req.param("id");
 
-  const body = await c.req.json<{
-    encryptedData?: string;
-    iv?: string;
-    tag?: string;
-  }>();
+	const body = await c.req.json<{
+		encryptedData?: string;
+		iv?: string;
+		tag?: string;
+	}>();
 
-  if (!body.encryptedData || !body.iv || !body.tag) {
-    return c.json(
-      { error: "encryptedData, iv, and tag are required" },
-      400
-    );
-  }
+	if (!body.encryptedData || !body.iv || !body.tag) {
+		return c.json({ error: "encryptedData, iv, and tag are required" }, 400);
+	}
 
-  const blob = await upsertBlob(id, user.sub, body.encryptedData, body.iv, body.tag);
+	const blob = await upsertBlob(id, user.sub, body.encryptedData, body.iv, body.tag);
 
-  return c.json({
-    id: blob.id,
-    updatedAt: blob.updatedAt,
-  });
+	return c.json({
+		id: blob.id,
+		updatedAt: blob.updatedAt,
+	});
 });
 
 /**
@@ -89,31 +80,28 @@ blobRoutes.put("/:id", async (c) => {
  * POST /blobs
  */
 blobRoutes.post("/", async (c) => {
-  const user = getUser(c);
+	const user = getUser(c);
 
-  const body = await c.req.json<{
-    encryptedData?: string;
-    iv?: string;
-    tag?: string;
-  }>();
+	const body = await c.req.json<{
+		encryptedData?: string;
+		iv?: string;
+		tag?: string;
+	}>();
 
-  if (!body.encryptedData || !body.iv || !body.tag) {
-    return c.json(
-      { error: "encryptedData, iv, and tag are required" },
-      400
-    );
-  }
+	if (!body.encryptedData || !body.iv || !body.tag) {
+		return c.json({ error: "encryptedData, iv, and tag are required" }, 400);
+	}
 
-  const id = generateId();
-  const blob = await upsertBlob(id, user.sub, body.encryptedData, body.iv, body.tag);
+	const id = generateId();
+	const blob = await upsertBlob(id, user.sub, body.encryptedData, body.iv, body.tag);
 
-  return c.json(
-    {
-      id: blob.id,
-      updatedAt: blob.updatedAt,
-    },
-    201
-  );
+	return c.json(
+		{
+			id: blob.id,
+			updatedAt: blob.updatedAt,
+		},
+		201,
+	);
 });
 
 /**
@@ -121,13 +109,13 @@ blobRoutes.post("/", async (c) => {
  * DELETE /blobs/:id
  */
 blobRoutes.delete("/:id", async (c) => {
-  const user = getUser(c);
-  const id = c.req.param("id");
+	const user = getUser(c);
+	const id = c.req.param("id");
 
-  const deleted = await deleteBlob(id, user.sub);
-  if (!deleted) {
-    return c.json({ error: "Blob not found" }, 404);
-  }
+	const deleted = await deleteBlob(id, user.sub);
+	if (!deleted) {
+		return c.json({ error: "Blob not found" }, 404);
+	}
 
-  return c.json({ success: true });
+	return c.json({ success: true });
 });

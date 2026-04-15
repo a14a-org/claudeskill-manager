@@ -4,18 +4,18 @@
 
 import { Hono } from "hono";
 import {
-  findSkillByKey,
-  listUserSkills,
-  createSkill,
-  updateSkillCurrentHash,
-  deleteSkill,
-  createSkillVersion,
-  findSkillVersion,
-  listSkillVersions,
-  createPublicSkill,
-  listUserPublicSkills,
-  deletePublicSkill,
-  countUserPendingPublicSkills,
+	countUserPendingPublicSkills,
+	createPublicSkill,
+	createSkill,
+	createSkillVersion,
+	deletePublicSkill,
+	deleteSkill,
+	findSkillByKey,
+	findSkillVersion,
+	listSkillVersions,
+	listUserPublicSkills,
+	listUserSkills,
+	updateSkillCurrentHash,
 } from "../db/index.js";
 import { authMiddleware, getUser } from "../middleware.js";
 
@@ -32,21 +32,21 @@ skillsRouter.use("*", authMiddleware);
  * "public" being matched as a skillKey parameter.
  */
 skillsRouter.get("/public", async (c) => {
-  const user = getUser(c);
-  const publicSkillsList = await listUserPublicSkills(user.sub);
+	const user = getUser(c);
+	const publicSkillsList = await listUserPublicSkills(user.sub);
 
-  return c.json({
-    skills: publicSkillsList.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      status: s.status,
-      downloadCount: s.downloadCount,
-      submittedAt: s.submittedAt,
-      publishedAt: s.publishedAt,
-      rejectionReason: s.rejectionReason,
-    })),
-  });
+	return c.json({
+		skills: publicSkillsList.map((s) => ({
+			id: s.id,
+			slug: s.slug,
+			name: s.name,
+			status: s.status,
+			downloadCount: s.downloadCount,
+			submittedAt: s.submittedAt,
+			publishedAt: s.publishedAt,
+			rejectionReason: s.rejectionReason,
+		})),
+	});
 });
 
 /**
@@ -56,15 +56,15 @@ skillsRouter.get("/public", async (c) => {
  * NOTE: This route MUST be registered before /:skillKey to avoid conflicts.
  */
 skillsRouter.delete("/public/:id", async (c) => {
-  const user = getUser(c);
-  const id = c.req.param("id");
+	const user = getUser(c);
+	const id = c.req.param("id");
 
-  const deleted = await deletePublicSkill(id, user.sub);
-  if (!deleted) {
-    return c.json({ error: "Public skill not found" }, 404);
-  }
+	const deleted = await deletePublicSkill(id, user.sub);
+	if (!deleted) {
+		return c.json({ error: "Public skill not found" }, 404);
+	}
 
-  return c.json({ success: true });
+	return c.json({ success: true });
 });
 
 /**
@@ -72,17 +72,17 @@ skillsRouter.delete("/public/:id", async (c) => {
  * GET /skills
  */
 skillsRouter.get("/", async (c) => {
-  const user = getUser(c);
-  const skills = await listUserSkills(user.sub);
+	const user = getUser(c);
+	const skills = await listUserSkills(user.sub);
 
-  return c.json({
-    skills: skills.map((s) => ({
-      id: s.id,
-      skillKey: s.skillKey,
-      currentHash: s.currentHash,
-      updatedAt: s.updatedAt,
-    })),
-  });
+	return c.json({
+		skills: skills.map((s) => ({
+			id: s.id,
+			skillKey: s.skillKey,
+			currentHash: s.currentHash,
+			updatedAt: s.updatedAt,
+		})),
+	});
 });
 
 /**
@@ -90,51 +90,51 @@ skillsRouter.get("/", async (c) => {
  * POST /skills/:skillKey/versions
  */
 skillsRouter.post("/:skillKey/versions", async (c) => {
-  const user = getUser(c);
-  const userId = user.sub;
-  const skillKey = c.req.param("skillKey");
+	const user = getUser(c);
+	const userId = user.sub;
+	const skillKey = c.req.param("skillKey");
 
-  const body = await c.req.json<{
-    hash: string;
-    encryptedData: string;
-    iv: string;
-    tag: string;
-    message?: string;
-  }>();
+	const body = await c.req.json<{
+		hash: string;
+		encryptedData: string;
+		iv: string;
+		tag: string;
+		message?: string;
+	}>();
 
-  if (!body.hash || !body.encryptedData || !body.iv || !body.tag) {
-    return c.json({ error: "Missing required fields" }, 400);
-  }
+	if (!body.hash || !body.encryptedData || !body.iv || !body.tag) {
+		return c.json({ error: "Missing required fields" }, 400);
+	}
 
-  // Find or create skill
-  let skill = await findSkillByKey(userId, skillKey);
-  if (!skill) {
-    skill = await createSkill(userId, skillKey);
-  }
+	// Find or create skill
+	let skill = await findSkillByKey(userId, skillKey);
+	if (!skill) {
+		skill = await createSkill(userId, skillKey);
+	}
 
-  // Get parent hash (current version before this push)
-  const parentHash = skill.currentHash;
+	// Get parent hash (current version before this push)
+	const parentHash = skill.currentHash;
 
-  // Create the version
-  const version = await createSkillVersion(
-    skill.id,
-    body.hash,
-    body.encryptedData,
-    body.iv,
-    body.tag,
-    parentHash,
-    body.message ?? null
-  );
+	// Create the version
+	const version = await createSkillVersion(
+		skill.id,
+		body.hash,
+		body.encryptedData,
+		body.iv,
+		body.tag,
+		parentHash,
+		body.message ?? null,
+	);
 
-  // Update current hash
-  await updateSkillCurrentHash(skill.id, body.hash);
+	// Update current hash
+	await updateSkillCurrentHash(skill.id, body.hash);
 
-  return c.json({
-    skillId: skill.id,
-    hash: version.hash,
-    parentHash: version.parentHash,
-    createdAt: version.createdAt,
-  });
+	return c.json({
+		skillId: skill.id,
+		hash: version.hash,
+		parentHash: version.parentHash,
+		createdAt: version.createdAt,
+	});
 });
 
 /**
@@ -142,27 +142,27 @@ skillsRouter.post("/:skillKey/versions", async (c) => {
  * GET /skills/:skillKey/versions
  */
 skillsRouter.get("/:skillKey/versions", async (c) => {
-  const user = getUser(c);
-  const skillKey = c.req.param("skillKey");
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+	const user = getUser(c);
+	const skillKey = c.req.param("skillKey");
+	const limit = parseInt(c.req.query("limit") ?? "50", 10);
 
-  const skill = await findSkillByKey(user.sub, skillKey);
-  if (!skill) {
-    return c.json({ error: "Skill not found" }, 404);
-  }
+	const skill = await findSkillByKey(user.sub, skillKey);
+	if (!skill) {
+		return c.json({ error: "Skill not found" }, 404);
+	}
 
-  const versions = await listSkillVersions(skill.id, limit);
+	const versions = await listSkillVersions(skill.id, limit);
 
-  return c.json({
-    skillKey,
-    currentHash: skill.currentHash,
-    versions: versions.map((v) => ({
-      hash: v.hash,
-      parentHash: v.parentHash,
-      message: v.message,
-      createdAt: v.createdAt,
-    })),
-  });
+	return c.json({
+		skillKey,
+		currentHash: skill.currentHash,
+		versions: versions.map((v) => ({
+			hash: v.hash,
+			parentHash: v.parentHash,
+			message: v.message,
+			createdAt: v.createdAt,
+		})),
+	});
 });
 
 /**
@@ -170,30 +170,30 @@ skillsRouter.get("/:skillKey/versions", async (c) => {
  * GET /skills/:skillKey/versions/:hash
  */
 skillsRouter.get("/:skillKey/versions/:hash", async (c) => {
-  const user = getUser(c);
-  const skillKey = c.req.param("skillKey");
-  const hash = c.req.param("hash");
+	const user = getUser(c);
+	const skillKey = c.req.param("skillKey");
+	const hash = c.req.param("hash");
 
-  const skill = await findSkillByKey(user.sub, skillKey);
-  if (!skill) {
-    return c.json({ error: "Skill not found" }, 404);
-  }
+	const skill = await findSkillByKey(user.sub, skillKey);
+	if (!skill) {
+		return c.json({ error: "Skill not found" }, 404);
+	}
 
-  const version = await findSkillVersion(skill.id, hash);
-  if (!version) {
-    return c.json({ error: "Version not found" }, 404);
-  }
+	const version = await findSkillVersion(skill.id, hash);
+	if (!version) {
+		return c.json({ error: "Version not found" }, 404);
+	}
 
-  return c.json({
-    skillKey,
-    hash: version.hash,
-    encryptedData: version.encryptedData,
-    iv: version.iv,
-    tag: version.tag,
-    parentHash: version.parentHash,
-    message: version.message,
-    createdAt: version.createdAt,
-  });
+	return c.json({
+		skillKey,
+		hash: version.hash,
+		encryptedData: version.encryptedData,
+		iv: version.iv,
+		tag: version.tag,
+		parentHash: version.parentHash,
+		message: version.message,
+		createdAt: version.createdAt,
+	});
 });
 
 /**
@@ -201,34 +201,34 @@ skillsRouter.get("/:skillKey/versions/:hash", async (c) => {
  * GET /skills/:skillKey
  */
 skillsRouter.get("/:skillKey", async (c) => {
-  const user = getUser(c);
-  const skillKey = c.req.param("skillKey");
+	const user = getUser(c);
+	const skillKey = c.req.param("skillKey");
 
-  const skill = await findSkillByKey(user.sub, skillKey);
-  if (!skill) {
-    return c.json({ error: "Skill not found" }, 404);
-  }
+	const skill = await findSkillByKey(user.sub, skillKey);
+	if (!skill) {
+		return c.json({ error: "Skill not found" }, 404);
+	}
 
-  if (!skill.currentHash) {
-    return c.json({ error: "Skill has no versions" }, 404);
-  }
+	if (!skill.currentHash) {
+		return c.json({ error: "Skill has no versions" }, 404);
+	}
 
-  const version = await findSkillVersion(skill.id, skill.currentHash);
-  if (!version) {
-    return c.json({ error: "Current version not found" }, 404);
-  }
+	const version = await findSkillVersion(skill.id, skill.currentHash);
+	if (!version) {
+		return c.json({ error: "Current version not found" }, 404);
+	}
 
-  return c.json({
-    skillKey,
-    skillId: skill.id,
-    hash: version.hash,
-    encryptedData: version.encryptedData,
-    iv: version.iv,
-    tag: version.tag,
-    parentHash: version.parentHash,
-    message: version.message,
-    createdAt: version.createdAt,
-  });
+	return c.json({
+		skillKey,
+		skillId: skill.id,
+		hash: version.hash,
+		encryptedData: version.encryptedData,
+		iv: version.iv,
+		tag: version.tag,
+		parentHash: version.parentHash,
+		message: version.message,
+		createdAt: version.createdAt,
+	});
 });
 
 /**
@@ -236,20 +236,20 @@ skillsRouter.get("/:skillKey", async (c) => {
  * DELETE /skills/:skillKey
  */
 skillsRouter.delete("/:skillKey", async (c) => {
-  const user = getUser(c);
-  const skillKey = c.req.param("skillKey");
+	const user = getUser(c);
+	const skillKey = c.req.param("skillKey");
 
-  const skill = await findSkillByKey(user.sub, skillKey);
-  if (!skill) {
-    return c.json({ error: "Skill not found" }, 404);
-  }
+	const skill = await findSkillByKey(user.sub, skillKey);
+	if (!skill) {
+		return c.json({ error: "Skill not found" }, 404);
+	}
 
-  const deleted = await deleteSkill(skill.id, user.sub);
-  if (!deleted) {
-    return c.json({ error: "Failed to delete skill" }, 500);
-  }
+	const deleted = await deleteSkill(skill.id, user.sub);
+	if (!deleted) {
+		return c.json({ error: "Failed to delete skill" }, 500);
+	}
 
-  return c.json({ success: true });
+	return c.json({ success: true });
 });
 
 /**
@@ -260,89 +260,83 @@ skillsRouter.delete("/:skillKey", async (c) => {
  * as public skills are stored unencrypted.
  */
 skillsRouter.post("/:skillKey/publish", async (c) => {
-  const user = getUser(c);
-  const skillKey = c.req.param("skillKey");
+	const user = getUser(c);
+	const skillKey = c.req.param("skillKey");
 
-  const body = await c.req.json<{
-    name: string;
-    content: string;
-    description?: string;
-    category?: string;
-    tags?: string[];
-    files?: Record<string, string>;
-  }>();
+	const body = await c.req.json<{
+		name: string;
+		content: string;
+		description?: string;
+		category?: string;
+		tags?: string[];
+		files?: Record<string, string>;
+	}>();
 
-  if (!body.name || !body.content) {
-    return c.json({ error: "Name and content are required" }, 400);
-  }
+	if (!body.name || !body.content) {
+		return c.json({ error: "Name and content are required" }, 400);
+	}
 
-  // Check content size limit (500KB)
-  const MAX_CONTENT_SIZE = 500 * 1024;
-  const contentSize = new TextEncoder().encode(body.content).byteLength;
-  const filesSize = body.files
-    ? new TextEncoder().encode(JSON.stringify(body.files)).byteLength
-    : 0;
-  if (contentSize + filesSize > MAX_CONTENT_SIZE) {
-    return c.json(
-      { error: "Content exceeds maximum size of 500KB" },
-      400
-    );
-  }
+	// Check content size limit (500KB)
+	const MAX_CONTENT_SIZE = 500 * 1024;
+	const contentSize = new TextEncoder().encode(body.content).byteLength;
+	const filesSize = body.files
+		? new TextEncoder().encode(JSON.stringify(body.files)).byteLength
+		: 0;
+	if (contentSize + filesSize > MAX_CONTENT_SIZE) {
+		return c.json({ error: "Content exceeds maximum size of 500KB" }, 400);
+	}
 
-  // Rate limit: max 10 pending submissions per user
-  const pendingCount = await countUserPendingPublicSkills(user.sub);
-  if (pendingCount >= 10) {
-    return c.json(
-      { error: "Too many pending submissions. Please wait for existing submissions to be reviewed." },
-      429
-    );
-  }
+	// Rate limit: max 10 pending submissions per user
+	const pendingCount = await countUserPendingPublicSkills(user.sub);
+	if (pendingCount >= 10) {
+		return c.json(
+			{
+				error: "Too many pending submissions. Please wait for existing submissions to be reviewed.",
+			},
+			429,
+		);
+	}
 
-  // Find the original skill (optional - we just need the ID for reference)
-  const skill = await findSkillByKey(user.sub, skillKey);
+	// Find the original skill (optional - we just need the ID for reference)
+	const skill = await findSkillByKey(user.sub, skillKey);
 
-  // Generate a slug from the name
-  const slug = body.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+	// Generate a slug from the name
+	const slug = body.name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
 
-  // Check for slug uniqueness by trying different suffixes
-  let finalSlug = slug;
-  let suffix = 0;
-  while (true) {
-    try {
-      const publicSkill = await createPublicSkill(
-        user.sub,
-        skill?.id ?? null,
-        finalSlug,
-        body.name,
-        body.content,
-        body.description,
-        body.category,
-        body.tags,
-        body.files
-      );
+	// Check for slug uniqueness by trying different suffixes
+	let finalSlug = slug;
+	let suffix = 0;
+	while (true) {
+		try {
+			const publicSkill = await createPublicSkill(
+				user.sub,
+				skill?.id ?? null,
+				finalSlug,
+				body.name,
+				body.content,
+				body.description,
+				body.category,
+				body.tags,
+				body.files,
+			);
 
-      return c.json({
-        id: publicSkill.id,
-        slug: publicSkill.slug,
-        status: publicSkill.status,
-        message: "Skill submitted for review",
-      });
-    } catch (err) {
-      // If slug conflict, try with a suffix
-      if (
-        err instanceof Error &&
-        err.message.includes("unique constraint") &&
-        suffix < 10
-      ) {
-        suffix++;
-        finalSlug = `${slug}-${suffix}`;
-        continue;
-      }
-      throw err;
-    }
-  }
+			return c.json({
+				id: publicSkill.id,
+				slug: publicSkill.slug,
+				status: publicSkill.status,
+				message: "Skill submitted for review",
+			});
+		} catch (err) {
+			// If slug conflict, try with a suffix
+			if (err instanceof Error && err.message.includes("unique constraint") && suffix < 10) {
+				suffix++;
+				finalSlug = `${slug}-${suffix}`;
+				continue;
+			}
+			throw err;
+		}
+	}
 });
-

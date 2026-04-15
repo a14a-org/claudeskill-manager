@@ -2,8 +2,8 @@
  * Authentication utilities
  */
 
-import { sha256 } from "@noble/hashes/sha2.js";
 import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 
 /** JWT configuration */
@@ -12,13 +12,10 @@ const ACCESS_TOKEN_EXPIRY = 60 * 60; // 1 hour in seconds
 const REFRESH_TOKEN_EXPIRY = 30 * 24 * 60 * 60; // 30 days in seconds
 
 // Warn if using default secret in production
-if (
-  process.env["NODE_ENV"] === "production" &&
-  JWT_SECRET === "development-secret-change-me"
-) {
-  console.warn(
-    "WARNING: JWT_SECRET is set to the default development value. Set a secure JWT_SECRET environment variable for production."
-  );
+if (process.env["NODE_ENV"] === "production" && JWT_SECRET === "development-secret-change-me") {
+	console.warn(
+		"WARNING: JWT_SECRET is set to the default development value. Set a secure JWT_SECRET environment variable for production.",
+	);
 }
 
 /** OTP configuration */
@@ -28,127 +25,122 @@ const OTP_LENGTH = 6;
  * Generate a random OTP code
  */
 export const generateOtpCode = (): string => {
-  const bytes = randomBytes(4);
-  const num =
-    ((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>>
-    0;
-  return String(num % 1000000).padStart(OTP_LENGTH, "0");
+	const bytes = randomBytes(4);
+	const num = ((bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!) >>> 0;
+	return String(num % 1000000).padStart(OTP_LENGTH, "0");
 };
 
 /**
  * Hash a token for storage
  */
 export const hashToken = (token: string): string => {
-  return bytesToHex(sha256(new TextEncoder().encode(token)));
+	return bytesToHex(sha256(new TextEncoder().encode(token)));
 };
 
 /**
  * Generate a random token
  */
 export const generateToken = (): string => {
-  return bytesToHex(randomBytes(32));
+	return bytesToHex(randomBytes(32));
 };
 
 /**
  * Base64URL encode
  */
 const base64UrlEncode = (data: string): string => {
-  return Buffer.from(data)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+	return Buffer.from(data)
+		.toString("base64")
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=/g, "");
 };
 
 /**
  * Base64URL decode
  */
 const base64UrlDecode = (data: string): string => {
-  const padded = data + "=".repeat((4 - (data.length % 4)) % 4);
-  return Buffer.from(
-    padded.replace(/-/g, "+").replace(/_/g, "/"),
-    "base64"
-  ).toString();
+	const padded = data + "=".repeat((4 - (data.length % 4)) % 4);
+	return Buffer.from(padded.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString();
 };
 
 /**
  * JWT payload
  */
 export type JwtPayload = {
-  sub: string; // user ID
-  email: string;
-  iat: number; // issued at
-  exp: number; // expiration
+	sub: string; // user ID
+	email: string;
+	iat: number; // issued at
+	exp: number; // expiration
 };
 
 /**
  * Create a JWT token
  */
 export const createJwt = (userId: string, email: string): string => {
-  const now = Math.floor(Date.now() / 1000);
+	const now = Math.floor(Date.now() / 1000);
 
-  const header = { alg: "HS256", typ: "JWT" };
-  const payload: JwtPayload = {
-    sub: userId,
-    email,
-    iat: now,
-    exp: now + ACCESS_TOKEN_EXPIRY,
-  };
+	const header = { alg: "HS256", typ: "JWT" };
+	const payload: JwtPayload = {
+		sub: userId,
+		email,
+		iat: now,
+		exp: now + ACCESS_TOKEN_EXPIRY,
+	};
 
-  const headerB64 = base64UrlEncode(JSON.stringify(header));
-  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
-  const message = `${headerB64}.${payloadB64}`;
+	const headerB64 = base64UrlEncode(JSON.stringify(header));
+	const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+	const message = `${headerB64}.${payloadB64}`;
 
-  const signature = bytesToHex(
-    hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message))
-  );
-  const signatureB64 = base64UrlEncode(signature);
+	const signature = bytesToHex(
+		hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message)),
+	);
+	const signatureB64 = base64UrlEncode(signature);
 
-  return `${message}.${signatureB64}`;
+	return `${message}.${signatureB64}`;
 };
 
 /**
  * Verify and decode a JWT token
  */
 export const verifyJwt = (token: string): JwtPayload | null => {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
+	try {
+		const parts = token.split(".");
+		if (parts.length !== 3) return null;
 
-    const [headerB64, payloadB64, signatureB64] = parts;
-    const message = `${headerB64}.${payloadB64}`;
+		const [headerB64, payloadB64, signatureB64] = parts;
+		const message = `${headerB64}.${payloadB64}`;
 
-    // Verify signature
-    const expectedSignature = bytesToHex(
-      hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message))
-    );
-    const expectedSignatureB64 = base64UrlEncode(expectedSignature);
+		// Verify signature
+		const expectedSignature = bytesToHex(
+			hmac(sha256, new TextEncoder().encode(JWT_SECRET), new TextEncoder().encode(message)),
+		);
+		const expectedSignatureB64 = base64UrlEncode(expectedSignature);
 
-    if (signatureB64 !== expectedSignatureB64) return null;
+		if (signatureB64 !== expectedSignatureB64) return null;
 
-    // Decode payload
-    const payload = JSON.parse(base64UrlDecode(payloadB64!)) as JwtPayload;
+		// Decode payload
+		const payload = JSON.parse(base64UrlDecode(payloadB64!)) as JwtPayload;
 
-    // Check expiration
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) return null;
+		// Check expiration
+		const now = Math.floor(Date.now() / 1000);
+		if (payload.exp < now) return null;
 
-    return payload;
-  } catch {
-    return null;
-  }
+		return payload;
+	} catch {
+		return null;
+	}
 };
 
 /**
  * Create access and refresh tokens for a user
  */
 export const createTokenPair = (
-  userId: string,
-  email: string
+	userId: string,
+	email: string,
 ): { accessToken: string; refreshToken: string } => {
-  const accessToken = createJwt(userId, email);
-  const refreshToken = generateToken();
-  return { accessToken, refreshToken };
+	const accessToken = createJwt(userId, email);
+	const refreshToken = generateToken();
+	return { accessToken, refreshToken };
 };
 
 /**
@@ -159,35 +151,31 @@ const rateLimitState = new Map<string, { count: number; resetAt: number }>();
 /**
  * Check rate limit for OTP requests
  */
-export const checkRateLimit = (
-  email: string,
-  maxRequests = 5,
-  windowMs = 60000
-): boolean => {
-  const now = Date.now();
-  const state = rateLimitState.get(email);
+export const checkRateLimit = (email: string, maxRequests = 5, windowMs = 60000): boolean => {
+	const now = Date.now();
+	const state = rateLimitState.get(email);
 
-  if (!state || state.resetAt < now) {
-    rateLimitState.set(email, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
+	if (!state || state.resetAt < now) {
+		rateLimitState.set(email, { count: 1, resetAt: now + windowMs });
+		return true;
+	}
 
-  if (state.count >= maxRequests) {
-    return false;
-  }
+	if (state.count >= maxRequests) {
+		return false;
+	}
 
-  state.count++;
-  return true;
+	state.count++;
+	return true;
 };
 
 /**
  * Clean up expired rate limit entries
  */
 export const cleanupRateLimits = (): void => {
-  const now = Date.now();
-  const expiredKeys = Array.from(rateLimitState.entries())
-    .filter(([, state]) => state.resetAt < now)
-    .map(([key]) => key);
+	const now = Date.now();
+	const expiredKeys = Array.from(rateLimitState.entries())
+		.filter(([, state]) => state.resetAt < now)
+		.map(([key]) => key);
 
-  expiredKeys.forEach((key) => rateLimitState.delete(key));
+	expiredKeys.forEach((key) => rateLimitState.delete(key));
 };

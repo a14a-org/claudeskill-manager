@@ -14,37 +14,34 @@ let resend: Resend | null = null;
  * Get Resend client
  */
 const getResend = (): Resend | null => {
-  if (!resend && RESEND_API_KEY) {
-    resend = new Resend(RESEND_API_KEY);
-  }
-  return resend;
+	if (!resend && RESEND_API_KEY) {
+		resend = new Resend(RESEND_API_KEY);
+	}
+	return resend;
 };
 
 /**
  * Send OTP code via email
  */
-export const sendOtpEmail = async (
-  email: string,
-  code: string
-): Promise<boolean> => {
-  // In development, just log the code
-  if (DEV_MODE || !RESEND_API_KEY) {
-    console.log(`[DEV] OTP code for ${email}: ${code}`);
-    return true;
-  }
+export const sendOtpEmail = async (email: string, code: string): Promise<boolean> => {
+	// In development, just log the code
+	if (DEV_MODE || !RESEND_API_KEY) {
+		console.log(`[DEV] OTP code for ${email}: ${code}`);
+		return true;
+	}
 
-  const client = getResend();
-  if (!client) {
-    console.error("Resend client not initialized");
-    return false;
-  }
+	const client = getResend();
+	if (!client) {
+		console.error("Resend client not initialized");
+		return false;
+	}
 
-  try {
-    const { error } = await client.emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: "Your Claude Skill Sync verification code",
-      html: `
+	try {
+		const { error } = await client.emails.send({
+			from: FROM_EMAIL,
+			to: email,
+			subject: "Your Claude Skill Sync verification code",
+			html: `
         <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
           <h1 style="font-size: 24px; margin-bottom: 20px;">Verification Code</h1>
           <p style="color: #666; margin-bottom: 20px;">
@@ -58,17 +55,17 @@ export const sendOtpEmail = async (
           </p>
         </div>
       `,
-      text: `Your Claude Skill Sync verification code is: ${code}\n\nThis code expires in 10 minutes.`,
-    });
+			text: `Your Claude Skill Sync verification code is: ${code}\n\nThis code expires in 10 minutes.`,
+		});
 
-    if (error) {
-      console.error("Failed to send email:", error);
-      return false;
-    }
+		if (error) {
+			console.error("Failed to send email:", error);
+			return false;
+		}
 
-    return true;
-  } catch (err) {
-    console.error("Error sending email:", err);
-    return false;
-  }
+		return true;
+	} catch (err) {
+		console.error("Error sending email:", err);
+		return false;
+	}
 };

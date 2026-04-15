@@ -1,0 +1,10 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.{js,ts,jsx,tsx,json,css}"
+      run: bunx biome check --fix --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    types:
+      glob: "*.{ts,tsx}"
+      run: bunx tsc --noEmit

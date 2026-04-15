@@ -1,41 +1,41 @@
 {
-  "name": "@claudeskill/server",
-  "version": "0.1.0",
-  "description": "API server for Claude Skill Sync",
-  "type": "module",
-  "main": "./dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsx watch --env-file=../../.env src/index.ts",
-    "start": "node --env-file=.env dist/index.js",
-    "start:prod": "node dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
-  },
-  "dependencies": {
-    "@hono/node-server": "^1.19.14",
-    "@noble/hashes": "^2.2.0",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.12",
-    "postgres": "^3.4.9",
-    "resend": "^6.10.0"
-  },
-  "devDependencies": {
-    "@types/node": "^25.6.0",
-    "drizzle-kit": "^0.31.10",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
-  },
-  "engines": {
-    "node": ">=20.19.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/a14a-org/claudeskill-manager"
-  },
-  "license": "MIT"
+	"name": "@claudeskill/server",
+	"version": "0.1.0",
+	"description": "API server for Claude Skill Sync",
+	"type": "module",
+	"main": "./dist/index.js",
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsx watch --env-file=../../.env src/index.ts",
+		"start": "node --env-file=.env dist/index.js",
+		"start:prod": "node dist/index.js",
+		"typecheck": "tsc --noEmit",
+		"clean": "rm -rf dist .turbo",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push",
+		"db:studio": "drizzle-kit studio"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.19.14",
+		"@noble/hashes": "^2.2.0",
+		"drizzle-orm": "^0.45.2",
+		"hono": "^4.12.12",
+		"postgres": "^3.4.9",
+		"resend": "^6.10.0"
+	},
+	"devDependencies": {
+		"@types/node": "^25.6.0",
+		"drizzle-kit": "^0.31.10",
+		"tsx": "^4.19.2",
+		"typescript": "^5.7.2"
+	},
+	"engines": {
+		"node": ">=20.19.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/a14a-org/claudeskill-manager"
+	},
+	"license": "MIT"
 }

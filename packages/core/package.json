@@ -1,37 +1,41 @@
 {
-  "name": "@claudeskill/core",
-  "version": "0.3.2",
-  "description": "Core encryption and skill management for Claude Skill Sync",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": ["dist"],
-  "publishConfig": {
-    "access": "public"
-  },
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/crypto.test.ts src/skill.test.ts",
-    "clean": "rm -rf dist .turbo"
-  },
-  "dependencies": {
-    "@noble/curves": "^2.0.1",
-    "@noble/hashes": "^2.2.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.2"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/a14a-org/claudeskill-manager"
-  },
-  "license": "MIT"
+	"name": "@claudeskill/core",
+	"version": "0.3.2",
+	"description": "Core encryption and skill management for Claude Skill Sync",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "tsx --test src/crypto.test.ts src/skill.test.ts",
+		"clean": "rm -rf dist .turbo"
+	},
+	"dependencies": {
+		"@noble/curves": "^2.0.1",
+		"@noble/hashes": "^2.2.0"
+	},
+	"devDependencies": {
+		"@types/node": "^25.6.0",
+		"tsx": "^4.19.2",
+		"typescript": "^5.7.2"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/a14a-org/claudeskill-manager"
+	},
+	"license": "MIT"
 }
