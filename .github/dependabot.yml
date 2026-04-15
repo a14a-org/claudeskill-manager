@@ -1,6 +1,5 @@
 version: 2
 updates:
-  # Root npm dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -8,29 +7,17 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Amsterdam"
-    open-pull-requests-limit: 10
     groups:
-      # Group all minor and patch updates together
-      dependencies:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-      # Separate group for major updates
-      major-dependencies:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+      major:
+        update-types: ["major"]
     commit-message:
       prefix: "deps"
-      include: "scope"
     labels:
       - "dependencies"
       - "automated"
-
-  # GitHub Actions
+    open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -38,12 +25,9 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Europe/Amsterdam"
-    groups:
-      actions:
-        patterns:
-          - "*"
     commit-message:
-      prefix: "ci"
+      prefix: "deps"
     labels:
-      - "ci"
+      - "dependencies"
       - "automated"
+    open-pull-requests-limit: 5
