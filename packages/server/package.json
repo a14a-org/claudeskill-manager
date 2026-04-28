@@ -17,7 +17,7 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"dependencies": {
-		"@hono/node-server": "^1.19.14",
+		"@hono/node-server": "^2.0.0",
 		"@noble/hashes": "^2.2.0",
 		"drizzle-orm": "^0.45.2",
 		"hono": "^4.12.12",
@@ -28,7 +28,7 @@
 		"@types/node": "^25.6.0",
 		"drizzle-kit": "^0.31.10",
 		"tsx": "^4.19.2",
-		"typescript": "^5.7.2"
+		"typescript": "^6.0.3"
 	},
 	"engines": {
 		"node": ">=20.19.0"

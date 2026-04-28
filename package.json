@@ -23,6 +23,6 @@
 		"lefthook": "^2.1.5",
 		"postgres": "^3.4.9",
 		"turbo": "^2.9.6",
-		"typescript": "^5.7.2"
+		"typescript": "^6.0.3"
 	}
 }
