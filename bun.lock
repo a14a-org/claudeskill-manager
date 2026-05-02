@@ -9,7 +9,7 @@
         "lefthook": "^2.1.5",
         "postgres": "^3.4.9",
         "turbo": "^2.9.6",
-        "typescript": "^5.7.2",
+        "typescript": "^6.0.3",
       },
     },
     "packages/cli": {
@@ -24,7 +24,7 @@
       },
       "devDependencies": {
         "@types/node": "^25.6.0",
-        "typescript": "^5.7.2",
+        "typescript": "^6.0.3",
       },
     },
     "packages/core": {
@@ -37,14 +37,14 @@
       "devDependencies": {
         "@types/node": "^25.6.0",
         "tsx": "^4.19.2",
-        "typescript": "^5.7.2",
+        "typescript": "^6.0.3",
       },
     },
     "packages/server": {
       "name": "@claudeskill/server",
       "version": "0.1.0",
       "dependencies": {
-        "@hono/node-server": "^1.19.14",
+        "@hono/node-server": "^2.0.0",
         "@noble/hashes": "^2.2.0",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.12.12",
@@ -55,7 +55,7 @@
         "@types/node": "^25.6.0",
         "drizzle-kit": "^0.31.10",
         "tsx": "^4.19.2",
-        "typescript": "^5.7.2",
+        "typescript": "^6.0.3",
       },
     },
   },
@@ -146,7 +146,7 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.27.7", "", { "os": "win32", "cpu": "x64" }, "sha512-56hiAJPhwQ1R4i+21FVF7V8kSD5zZTdHcVuRFMW0hn753vVfQN8xlx4uOPT4xoGH0Z/oVATuR82AiqSTDIpaHg=="],
 
-    "@hono/node-server": ["@hono/node-server@1.19.14", "", { "peerDependencies": { "hono": "^4" } }, "sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw=="],
+    "@hono/node-server": ["@hono/node-server@2.0.1", "", { "peerDependencies": { "hono": "^4" } }, "sha512-jI9yMDyFpqBeSighf/zlXnQG/nl9AyBc6aAgy4XtxJMyt/CNyJpvPfzDD+bCc2zAOmhhqtF6TnmIaY+xV4mIrw=="],
 
     "@noble/curves": ["@noble/curves@2.2.0", "", { "dependencies": { "@noble/hashes": "2.2.0" } }, "sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ=="],
 
@@ -234,7 +234,7 @@
 
     "turbo": ["turbo@2.9.6", "", { "optionalDependencies": { "@turbo/darwin-64": "2.9.6", "@turbo/darwin-arm64": "2.9.6", "@turbo/linux-64": "2.9.6", "@turbo/linux-arm64": "2.9.6", "@turbo/windows-64": "2.9.6", "@turbo/windows-arm64": "2.9.6" }, "bin": { "turbo": "bin/turbo" } }, "sha512-+v2QJey7ZUeUiuigkU+uFfklvNUyPI2VO2vBpMYJA+a1hKFLFiKtUYlRHdb3P9CrAvMzi0upbjI4WT+zKtqkBg=="],
 
-    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "undici-types": ["undici-types@7.19.2", "", {}, "sha512-qYVnV5OEm2AW8cJMCpdV20CDyaN3g0AjDlOGf1OW4iaDEx8MwdtChUp4zu4H0VP3nDRF/8RKWH+IPp9uW0YGZg=="],
 
