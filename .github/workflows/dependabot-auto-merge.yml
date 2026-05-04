@@ -25,7 +25,7 @@ jobs:
 
       - name: Slack notification for minor update
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        uses: slackapi/slack-github-action@v3.0.2
+        uses: slackapi/slack-github-action@v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -45,7 +45,7 @@ jobs:
 
       - name: Slack notification for major update
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
-        uses: slackapi/slack-github-action@v3.0.2
+        uses: slackapi/slack-github-action@v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
