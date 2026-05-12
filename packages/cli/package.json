@@ -23,14 +23,14 @@
 	},
 	"dependencies": {
 		"@claudeskill/core": "*",
-		"@clack/prompts": "^1.1.0"
+		"@clack/prompts": "^1.4.0"
 	},
 	"devDependencies": {
-		"@types/node": "^25.6.0",
-		"typescript": "^5.7.2"
+		"@types/node": "^25.7.0",
+		"typescript": "^5.9.3"
 	},
 	"engines": {
-		"node": ">=20.19.0"
+		"node": ">=20.20.2"
 	},
 	"keywords": [
 		"claude",

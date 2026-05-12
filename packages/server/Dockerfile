@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20.20.2-alpine AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN yarn workspace @claudeskill/core build
 RUN yarn workspace @claudeskill/server build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20.20.2-alpine
 
 WORKDIR /app
 
