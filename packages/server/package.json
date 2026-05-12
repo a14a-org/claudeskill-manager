@@ -22,16 +22,16 @@
 		"drizzle-orm": "^0.45.2",
 		"hono": "^4.12.18",
 		"postgres": "^3.4.9",
-		"resend": "^6.10.0"
+		"resend": "^6.12.3"
 	},
 	"devDependencies": {
-		"@types/node": "^25.6.0",
+		"@types/node": "^25.7.0",
 		"drizzle-kit": "^0.31.10",
-		"tsx": "^4.19.2",
-		"typescript": "^5.7.2"
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.3"
 	},
 	"engines": {
-		"node": ">=20.19.0"
+		"node": ">=20.20.2"
 	},
 	"repository": {
 		"type": "git",
