@@ -47,7 +47,7 @@
         "@hono/node-server": "^1.19.14",
         "@noble/hashes": "^2.2.0",
         "drizzle-orm": "^0.45.2",
-        "hono": "^4.12.12",
+        "hono": "^4.12.18",
         "postgres": "^3.4.9",
         "resend": "^6.10.0",
       },
@@ -188,7 +188,7 @@
 
     "get-tsconfig": ["get-tsconfig@4.13.7", "", { "dependencies": { "resolve-pkg-maps": "^1.0.0" } }, "sha512-7tN6rFgBlMgpBML5j8typ92BKFi2sFQvIdpAqLA2beia5avZDrMs0FLZiM5etShWq5irVyGcGMEA1jcDaK7A/Q=="],
 
-    "hono": ["hono@4.12.12", "", {}, "sha512-p1JfQMKaceuCbpJKAPKVqyqviZdS0eUxH9v82oWo1kb9xjQ5wA6iP3FNVAPDFlz5/p7d45lO+BpSk1tuSZMF4Q=="],
+    "hono": ["hono@4.12.18", "", {}, "sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ=="],
 
     "lefthook": ["lefthook@2.1.5", "", { "optionalDependencies": { "lefthook-darwin-arm64": "2.1.5", "lefthook-darwin-x64": "2.1.5", "lefthook-freebsd-arm64": "2.1.5", "lefthook-freebsd-x64": "2.1.5", "lefthook-linux-arm64": "2.1.5", "lefthook-linux-x64": "2.1.5", "lefthook-openbsd-arm64": "2.1.5", "lefthook-openbsd-x64": "2.1.5", "lefthook-windows-arm64": "2.1.5", "lefthook-windows-x64": "2.1.5" }, "bin": { "lefthook": "bin/index.js" } }, "sha512-yB9IFWurFllusbPZqvG0EavTmpNXPya2MuO7Li7YT78xAj3uCQ3AgmW9TVUbTTsSMhsegbiAMRpwfEk2TP1P0A=="],
 
