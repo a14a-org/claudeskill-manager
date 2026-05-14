@@ -25,9 +25,9 @@
 		"resend": "^6.12.3"
 	},
 	"devDependencies": {
-		"@types/node": "^25.7.0",
+		"@types/node": "^25.8.0",
 		"drizzle-kit": "^0.31.10",
-		"tsx": "^4.21.1",
+		"tsx": "^4.22.0",
 		"typescript": "^5.9.3"
 	},
 	"engines": {
