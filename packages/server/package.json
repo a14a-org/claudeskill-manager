@@ -25,7 +25,7 @@
 		"resend": "^6.12.3"
 	},
 	"devDependencies": {
-		"@types/node": "^25.8.0",
+		"@types/node": "^25.9.0",
 		"drizzle-kit": "^0.31.10",
 		"tsx": "^4.22.1",
 		"typescript": "^5.9.3"
