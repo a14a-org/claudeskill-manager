@@ -6,7 +6,7 @@
       "name": "claudeskill-monorepo",
       "devDependencies": {
         "@biomejs/biome": "^2.4.15",
-        "lefthook": "^2.1.7",
+        "lefthook": "^2.1.8",
         "postgres": "^3.4.9",
         "turbo": "^2.9.14",
         "typescript": "^5.9.3",
@@ -36,7 +36,7 @@
       },
       "devDependencies": {
         "@types/node": "^25.9.0",
-        "tsx": "^4.22.2",
+        "tsx": "^4.22.3",
         "typescript": "^5.9.3",
       },
     },
@@ -47,14 +47,14 @@
         "@hono/node-server": "^1.19.14",
         "@noble/hashes": "^2.2.0",
         "drizzle-orm": "^0.45.2",
-        "hono": "^4.12.19",
+        "hono": "^4.12.21",
         "postgres": "^3.4.9",
         "resend": "^6.12.3",
       },
       "devDependencies": {
         "@types/node": "^25.9.0",
         "drizzle-kit": "^0.31.10",
-        "tsx": "^4.22.2",
+        "tsx": "^4.22.3",
         "typescript": "^5.9.3",
       },
     },
@@ -188,7 +188,7 @@
 
     "get-tsconfig": ["get-tsconfig@4.14.0", "", { "dependencies": { "resolve-pkg-maps": "^1.0.0" } }, "sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA=="],
 
-    "hono": ["hono@4.12.19", "", {}, "sha512-xa3eYXYXx68XTT4hZ7dRzsXBhaq85ToSrlUJNoR0gwz/1Ap/CNwX47wfvV7pc/xWhjKVVkLT7zBJy8chhNguqQ=="],
+    "hono": ["hono@4.12.22", "", {}, "sha512-7fvVPbB92zNRsQke+uiRGwtTuef0tB2Dg4hWxYfFNvkQhIltWoyi0ONReM5LWA+jJWS3nfT5lTq+qbsIpX0IQw=="],
 
     "lefthook": ["lefthook@2.1.8", "", { "optionalDependencies": { "lefthook-darwin-arm64": "2.1.8", "lefthook-darwin-x64": "2.1.8", "lefthook-freebsd-arm64": "2.1.8", "lefthook-freebsd-x64": "2.1.8", "lefthook-linux-arm64": "2.1.8", "lefthook-linux-x64": "2.1.8", "lefthook-openbsd-arm64": "2.1.8", "lefthook-openbsd-x64": "2.1.8", "lefthook-windows-arm64": "2.1.8", "lefthook-windows-x64": "2.1.8" }, "bin": { "lefthook": "bin/index.js" } }, "sha512-tJIoVpFF52PuU8YPJI9bRprGwzI6FR2GNeBbpMnXdRjjfJHyOR4VRLXilzoQ6lbhKVHfTohXhrQgLpU41bKITg=="],
 
