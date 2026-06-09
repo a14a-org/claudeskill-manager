@@ -23,7 +23,7 @@
         "@claudeskill/core": "*",
       },
       "devDependencies": {
-        "@types/node": "^25.9.1",
+        "@types/node": "^25.9.2",
         "typescript": "^5.9.3",
       },
     },
@@ -35,7 +35,7 @@
         "@noble/hashes": "^2.2.0",
       },
       "devDependencies": {
-        "@types/node": "^25.9.1",
+        "@types/node": "^25.9.2",
         "tsx": "^4.22.4",
         "typescript": "^5.9.3",
       },
@@ -52,7 +52,7 @@
         "resend": "^6.12.4",
       },
       "devDependencies": {
-        "@types/node": "^25.9.1",
+        "@types/node": "^25.9.2",
         "drizzle-kit": "^0.31.10",
         "tsx": "^4.22.4",
         "typescript": "^5.9.3",
