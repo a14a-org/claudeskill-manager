@@ -2,7 +2,11 @@
  * Claude Skill Sync API Server
  */
 
+// Must be imported first so Sentry can install its instrumentation hooks.
+import "./instrument.js";
+
 import { serve } from "@hono/node-server";
+import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -26,10 +30,7 @@ app.use("*", async (c, next) => {
 	c.header("Referrer-Policy", "strict-origin-when-cross-origin");
 	c.header("X-XSS-Protection", "1; mode=block");
 	c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-	c.header(
-		"Strict-Transport-Security",
-		"max-age=31536000; includeSubDomains; preload",
-	);
+	c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 });
 
 // Middleware
@@ -87,6 +88,7 @@ app.notFound((c) => {
 // Error handler
 app.onError((err, c) => {
 	console.error("Server error:", err);
+	Sentry.captureException(err);
 	return c.json({ error: "Internal server error" }, 500);
 });
 
