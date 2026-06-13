@@ -15,6 +15,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - FROM_EMAIL=${FROM_EMAIL:-noreply@claudeskill.io}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
