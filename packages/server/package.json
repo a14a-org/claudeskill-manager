@@ -19,11 +19,11 @@
 	"dependencies": {
 		"@hono/node-server": "^1.19.14",
 		"@noble/hashes": "^2.2.0",
-		"@sentry/node": "^10.61.0",
+		"@sentry/node": "^10.62.0",
 		"drizzle-orm": "^0.45.2",
 		"hono": "^4.12.27",
 		"postgres": "^3.4.9",
-		"resend": "^6.14.0"
+		"resend": "^6.16.0"
 	},
 	"devDependencies": {
 		"@types/node": "^26.0.1",
