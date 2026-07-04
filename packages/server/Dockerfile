@@ -1,15 +1,25 @@
+FROM node:20.20.2-alpine AS base
+
+ENV BUN_INSTALL=/usr/local/bun
+ENV PATH="${BUN_INSTALL}/bin:${PATH}"
+
+RUN apk add --no-cache bash curl unzip \
+  && curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
+  && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
+
 # Build stage
-FROM node:20.20.2-alpine AS builder
+FROM base AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json yarn.lock ./
+COPY package.json bun.lock ./
+COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
 COPY packages/server/package.json ./packages/server/
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy source
 COPY packages/core ./packages/core
@@ -17,21 +27,22 @@ COPY packages/server ./packages/server
 COPY tsconfig.json ./
 
 # Build
-RUN yarn workspace @claudeskill/core build
-RUN yarn workspace @claudeskill/server build
+RUN bun --filter @claudeskill/core build
+RUN bun --filter @claudeskill/server build
 
 # Production stage
-FROM node:20.20.2-alpine
+FROM base
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json yarn.lock ./
+COPY package.json bun.lock ./
+COPY packages/cli/package.json ./packages/cli/
 COPY packages/core/package.json ./packages/core/
 COPY packages/server/package.json ./packages/server/
 
 # Install production dependencies only
-RUN yarn install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production
 
 # Copy built files
 COPY --from=builder /app/packages/core/dist ./packages/core/dist
