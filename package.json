@@ -19,8 +19,8 @@
 		"clean": "turbo clean && rm -rf node_modules"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.15",
-		"lefthook": "^2.1.8",
+		"@biomejs/biome": "^2.5.2",
+		"lefthook": "^2.1.9",
 		"postgres": "^3.4.9",
 		"turbo": "^2.10.2",
 		"typescript": "^6.0.3"
