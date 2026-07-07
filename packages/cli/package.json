@@ -23,7 +23,7 @@
 	},
 	"dependencies": {
 		"@claudeskill/core": "*",
-		"@clack/prompts": "^1.6.0"
+		"@clack/prompts": "^1.7.0"
 	},
 	"devDependencies": {
 		"@types/node": "^26.1.0",
