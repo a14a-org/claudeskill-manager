@@ -21,7 +21,7 @@
 		"@noble/hashes": "^2.2.0",
 		"@sentry/node": "^10.65.0",
 		"drizzle-orm": "^0.45.2",
-		"hono": "^4.12.29",
+		"hono": "^4.12.30",
 		"postgres": "^3.4.9",
 		"resend": "^6.17.2"
 	},
