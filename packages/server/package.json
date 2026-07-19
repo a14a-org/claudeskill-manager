@@ -17,7 +17,7 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"dependencies": {
-		"@hono/node-server": "^1.19.14",
+		"@hono/node-server": "^2.0.10",
 		"@noble/hashes": "^2.2.0",
 		"@sentry/node": "^10.65.0",
 		"drizzle-orm": "^0.45.2",
