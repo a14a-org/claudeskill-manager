@@ -23,7 +23,7 @@
 		"drizzle-orm": "^0.45.2",
 		"hono": "^4.12.32",
 		"postgres": "^3.4.9",
-		"resend": "^6.18.0"
+		"resend": "^6.18.1"
 	},
 	"devDependencies": {
 		"@types/node": "^26.1.2",
