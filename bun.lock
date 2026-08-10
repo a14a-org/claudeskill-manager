@@ -36,7 +36,7 @@
       },
       "devDependencies": {
         "@types/node": "^26.1.2",
-        "tsx": "^4.23.9",
+        "tsx": "^4.23.10",
         "typescript": "^6.0.3",
       },
     },
@@ -55,7 +55,7 @@
       "devDependencies": {
         "@types/node": "^26.1.2",
         "drizzle-kit": "^0.31.10",
-        "tsx": "^4.23.9",
+        "tsx": "^4.23.10",
         "typescript": "^6.0.3",
       },
     },
