@@ -29,7 +29,7 @@
 		"@noble/hashes": "^2.3.0"
 	},
 	"devDependencies": {
-		"@types/node": "^26.1.2",
+		"@types/node": "^26.2.0",
 		"tsx": "^4.23.11",
 		"typescript": "^6.0.3"
 	},
