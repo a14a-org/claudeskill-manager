@@ -50,7 +50,7 @@
         "drizzle-orm": "^0.45.2",
         "hono": "^4.13.4",
         "postgres": "^3.4.9",
-        "resend": "^6.22.0",
+        "resend": "^6.22.1",
       },
       "devDependencies": {
         "@types/node": "^26.3.0",
@@ -279,7 +279,7 @@
 
     "require-in-the-middle": ["require-in-the-middle@8.0.1", "", { "dependencies": { "debug": "^4.3.5", "module-details-from-path": "^1.0.3" } }, "sha512-QT7FVMXfWOYFbeRBF6nu+I6tr2Tf3u0q8RIEjNob/heKY/nh7drD/k7eeMFmSQgnTtCzLDcCu/XEnpW2wk4xCQ=="],
 
-    "resend": ["resend@6.22.0", "", { "dependencies": { "postal-mime": "2.7.5", "standardwebhooks": "1.0.0" }, "peerDependencies": { "@react-email/render": "*" }, "optionalPeers": ["@react-email/render"] }, "sha512-dP1jyl0n1Dx7GYDb0bcsbv9Yx0oBRLhUtSyNFRIOsSzV9MvCVbua/3WP6YUP2JptAU5BciEWGInV+hFjUuYLUw=="],
+    "resend": ["resend@6.24.0", "", { "dependencies": { "postal-mime": "2.7.5", "standardwebhooks": "1.0.0" }, "peerDependencies": { "@react-email/render": "*" }, "optionalPeers": ["@react-email/render"] }, "sha512-ZG+tRzTtg3usrzMMVK1THPILCDbxE0uefG3XEQro/+jb9hcRb8JiQeyzIo2BphMJk2OomBeciZU3rCgX3XWx5w=="],
 
     "resolve-pkg-maps": ["resolve-pkg-maps@1.0.0", "", {}, "sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw=="],
 
