@@ -48,7 +48,7 @@
         "@noble/hashes": "^2.3.0",
         "@sentry/node": "^10.71.0",
         "drizzle-orm": "^0.45.2",
-        "hono": "^4.13.4",
+        "hono": "^4.13.5",
         "postgres": "^3.4.9",
         "resend": "^6.22.1",
       },
