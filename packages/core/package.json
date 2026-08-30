@@ -25,8 +25,8 @@
 		"clean": "rm -rf dist .turbo"
 	},
 	"dependencies": {
-		"@noble/curves": "^2.3.0",
-		"@noble/hashes": "^2.3.0"
+		"@noble/curves": "^2.4.0",
+		"@noble/hashes": "^2.4.0"
 	},
 	"devDependencies": {
 		"@types/node": "^26.4.0",
