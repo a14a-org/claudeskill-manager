@@ -29,7 +29,7 @@
 		"@types/node": "^26.6.2",
 		"drizzle-kit": "^0.31.11",
 		"tsx": "^4.23.15",
-		"typescript": "^6.0.3"
+		"typescript": "^7.0.2"
 	},
 	"engines": {
 		"node": ">=24.21.0"
