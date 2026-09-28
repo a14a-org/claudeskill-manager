@@ -4,7 +4,7 @@ ENV BUN_INSTALL=/usr/local/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
 RUN apk add --no-cache bash curl unzip \
-  && curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
+  && curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2" \
   && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
 # Build stage
