@@ -1,10 +1,10 @@
-FROM node:24.19.0-alpine AS base
+FROM node:24.22.1-alpine AS base
 
 ENV BUN_INSTALL=/usr/local/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
 RUN apk add --no-cache bash curl unzip \
-  && curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2" \
+  && curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.4" \
   && ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
 
 # Build stage
