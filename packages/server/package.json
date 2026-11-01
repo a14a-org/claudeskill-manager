@@ -19,14 +19,14 @@
 	"dependencies": {
 		"@hono/node-server": "^2.1.5",
 		"@noble/hashes": "^2.4.0",
-		"@sentry/node": "^11.8.0",
+		"@sentry/node": "^11.10.0",
 		"drizzle-orm": "^0.45.4",
-		"hono": "^4.13.13",
+		"hono": "^4.13.14",
 		"postgres": "^3.4.9",
-		"resend": "^6.34.1"
+		"resend": "^6.35.0"
 	},
 	"devDependencies": {
-		"@types/node": "^26.6.5",
+		"@types/node": "^26.6.6",
 		"drizzle-kit": "^0.31.11",
 		"tsx": "^4.23.15",
 		"typescript": "^7.0.2"
