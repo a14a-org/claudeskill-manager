@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
           ref: ${{ github.head_ref || github.ref }}
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.4.4
 
@@ -42,6 +42,7 @@ jobs:
 
   ci-ok:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build-and-test
     if: always()
     steps:
